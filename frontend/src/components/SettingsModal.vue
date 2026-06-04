@@ -17,6 +17,7 @@ interface Field {
 }
 
 const FIELDS: Field[] = [
+  { key: 'user_name',              label: 'Display name',                        hint: 'Your name as it appears in AI-drafted reply sign-offs. Leave blank to derive from your email.', type: 'text' },
   { key: 'reply_by_days',          label: 'Default reply window (days)',         hint: 'Days added to received date when no deadline is found.',            type: 'number', min: 1,  max: 30 },
   { key: 'reply_by_hour',          label: 'Default reply hour (0–23)',            hint: 'Hour of day for the default reply-by deadline.',                   type: 'number', min: 0,  max: 23 },
   { key: 'poll_interval_minutes',  label: 'Poll interval (minutes)',              hint: 'How often to automatically check Gmail for new messages.',          type: 'number', min: 1,  max: 60 },

@@ -71,9 +71,12 @@ make build      # copies the build into the backend package
    ```
    This folder is visible in your home directory (no hidden-folder hunt). The example file shape is in `client_secrets.example.json` at the root of this repo.
 
-   _Backward-compat: the old hidden path `~/.config/todo-mail/client_secrets.json` still works if you already have one there._
 
 ### Groq API key
+
+Easiest: start the app (next section), open **Settings** (gear icon) → **Groq API key** → Set key. Stored in the macOS Keychain.
+
+Or, from the terminal:
 
 ```bash
 todo-mail set-api-key
@@ -94,12 +97,9 @@ todo-mail start
 
 This opens `http://127.0.0.1:8765` in your browser. Click **Connect Gmail** to complete the OAuth flow once — credentials are cached in the macOS Keychain. After that, the app polls Gmail every 5 minutes (configurable) and classifies new messages.
 
-To set your display name in AI-drafted replies (defaults to the local part of your email):
-
-```bash
-sqlite3 ~/.local/share/todo-mail/todo.db \
-  "INSERT OR REPLACE INTO settings (key, value) VALUES ('user_name', 'Your Name');"
-```
+On first run, open **Settings** (gear icon) to:
+- Paste your **Groq API key**
+- Set your **Display name** (used in AI-drafted reply sign-offs — leave blank to derive from your email)
 
 ---
 

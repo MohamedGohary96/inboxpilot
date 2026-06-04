@@ -11,6 +11,7 @@ DEFAULTS: dict[str, str] = {
     "reminder_offsets_hours": "24,1,0",
     "gmail_query": "in:inbox is:unread -category:promotions -category:social newer_than:7d",
     "slack_lookback_days": "7",
+    "user_name": "",
 }
 
 
