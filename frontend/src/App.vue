@@ -317,7 +317,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
     <header class="bg-brand-darkest h-14 flex items-center px-6 gap-6 sticky top-0 z-50">
       <div class="flex items-center gap-2.5 text-white font-bold text-heading tracking-tight shrink-0">
         <EnvelopeIcon class="w-5 h-5 shrink-0" />
-        todo·mail
+        InboxPilot
       </div>
 
       <!-- Tab nav -->
