@@ -1,14 +1,14 @@
 [project]
 name = "todo-mail"
 version = "0.1.0"
-description = "Email-to-Todo Assistant — reads Gmail, surfaces actionable tasks using Claude"
+description = "InboxPilot — AI co-pilot for Gmail and Slack, powered by Groq"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.29",
+    "httpx>=0.27",
     "google-auth-oauthlib>=1.2",
     "google-api-python-client>=2.125",
-    "google-genai>=1.0",
     "groq>=0.13",
     "apscheduler>=3.10,<4",
     "keyring>=25",

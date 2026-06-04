@@ -9,7 +9,6 @@ export interface AdvancedFilters {
   completion: string[]
   replyBy: string | null
 }
-export type FeedbackKind = 'not_a_task' | 'wrong_summary' | 'wrong_deadline' | 'missed_task'
 export type DeadlineConfidence = 'explicit' | 'implied' | 'none'
 
 export interface ClassificationInfo {

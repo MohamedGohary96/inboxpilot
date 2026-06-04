@@ -131,7 +131,7 @@ def slack_reset():
 @router.post("/auth/slack/poll")
 async def slack_poll_now(request: Request):
     """Manually trigger a Slack-only poll (fire-and-forget, uses shared lock)."""
-    from fastapi import BackgroundTasks, HTTPException
+    from fastapi import HTTPException
     from ..poll_progress import (
         try_acquire as progress_acquire,
         release as progress_release,

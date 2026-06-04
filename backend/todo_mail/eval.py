@@ -197,7 +197,6 @@ def _report(results: list[dict]) -> None:
             if pred_dl:
                 deadline_total += 1
                 try:
-                    from datetime import timedelta
                     g_dt = datetime.fromisoformat(r["gold"]["deadline"])
                     p_dt = datetime.fromisoformat(pred_dl)
                     if abs((g_dt - p_dt).total_seconds()) <= 4 * 3600:

@@ -14,16 +14,12 @@ from .settings import get_secret, get_setting
 logger = logging.getLogger(__name__)
 
 # These are resolved at first classify call (after config.json is loaded).
-# Access via _model() / _prompt_version() rather than the module-level names.
 def _model() -> str:
     return _load_config()["model"]
 
+
 def _prompt_version() -> str:
     return _load_config()["prompt_version"]
-
-# Keep module-level names for backward-compat with eval CLI and tests.
-MODEL = _load_config()["model"]
-PROMPT_VERSION = _load_config()["prompt_version"]
 
 def _user_identity() -> tuple[str, str]:
     """Return (display_name, email) for the signed-in user.
@@ -305,7 +301,7 @@ def classify_and_store(message_id: int) -> bool:
                 (
                     message_id,
                     "pre-filter",
-                    PROMPT_VERSION,
+                    _prompt_version(),
                     json.dumps({"pre_filter_reason": msg["pre_filter_reason"]}),
                 ),
             )
@@ -518,7 +514,7 @@ def suggest_reply_draft(message_id: int, instructions: str | None = None) -> str
     client = _get_client()
     try:
         response = client.chat.completions.create(
-            model=MODEL,
+            model=_model(),
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user_content},
