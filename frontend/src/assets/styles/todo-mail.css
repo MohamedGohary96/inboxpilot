@@ -1,0 +1,233 @@
+/* todo-mail design tokens — synced from claude.ai/design handoff */
+:root {
+  --brand-primary:  #a3007c;
+  --brand-dark:     #7a005d;
+  --brand-darkest:  #4d003a;
+  --brand-light:    #d4a0c3;
+  --brand-lightest: #f3e3ed;
+  --brand-50:       #fdf2f9;
+
+  --surface-page: #e8e4f7;
+  --surface-card: #ffffff;
+  --surface-sunk: #f9fafb;
+
+  --grey-900: #111827;
+  --grey-800: #1f2937;
+  --grey-700: #374151;
+  --grey-600: #4b5563;
+  --grey-500: #6b7280;
+  --grey-400: #9ca3af;
+  --grey-300: #d1d5db;
+  --grey-200: #e5e7eb;
+  --grey-100: #f3f4f6;
+  --grey-50:  #f9fafb;
+
+  --status-overdue:   #4d003a;
+  --status-due-soon:  #f59e0b;
+  --status-replied:   #10b981;
+  --status-dismissed: #6b7280;
+
+  --r-sm:   6px;
+  --r-md:   8px;
+  --r-lg:   12px;
+  --r-xl:   16px;
+  --r-pill: 9999px;
+
+  --shadow-card:        0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-card-hover:  0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-dropdown:    0 4px 16px rgba(0,0,0,0.12);
+  --shadow-toast:       0 8px 24px rgba(0,0,0,0.15);
+  --shadow-focus-brand: 0 0 0 3px rgba(163, 0, 124, 0.25);
+}
+
+/* ── Base ─────────────────────────────────────────────────────────── */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: var(--grey-900);
+  background: var(--surface-page);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Scrollbar — brand-tinted ─────────────────────────────────────── */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(77, 0, 58, 0.15);
+  border-radius: 5px;
+  border: 2px solid var(--surface-page);
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(77, 0, 58, 0.3); }
+
+/* ── Animations ────────────────────────────────────────────────────── */
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideInRight {
+  0%   { opacity: 0; transform: translateX(24px); }
+  60%  { opacity: 1; transform: translateX(-4px); }
+  80%  { transform: translateX(2px); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position:  400px 0; }
+}
+
+/* The money moment — green halo on row completion */
+@keyframes successHalo {
+  0%   { box-shadow: inset 0 0 0 0 rgba(16, 185, 129, 0); }
+  40%  {
+    box-shadow: inset 3px 0 0 0 var(--status-replied),
+                0 0 0 2px rgba(16, 185, 129, 0.2);
+    background-color: rgba(16, 185, 129, 0.07);
+  }
+  100% { box-shadow: inset 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* Strikethrough on the task summary text */
+@keyframes strikeThrough {
+  from { background-size: 0%   1.5px; }
+  to   { background-size: 100% 1.5px; }
+}
+
+/* Check icon bounces when row completes */
+@keyframes checkPop {
+  0%   { transform: scale(0.5); opacity: 0; }
+  60%  { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+
+/* Row collapses after halo */
+@keyframes rowFadeOut {
+  0%   { opacity: 1; transform: translateX(0); }
+  100% { opacity: 0; transform: translateX(12px); }
+}
+
+/* Dismiss — slides left */
+@keyframes rowDismiss {
+  0%   { opacity: 1; transform: translateX(0); }
+  100% { opacity: 0; transform: translateX(-12px); }
+}
+
+/* Count badge pulse */
+@keyframes countPulse {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+
+/* ── Utility classes ──────────────────────────────────────────────── */
+
+.animate-fade-in-up    { animation: fadeInUp   0.32s ease-out both; }
+.animate-fade-in-down  { animation: fadeInDown 0.25s ease-out both; }
+.animate-scale-in      { animation: scaleIn    0.2s  ease-out both; }
+.animate-slide-in-right { animation: slideInRight 0.42s cubic-bezier(.2,.8,.2,1) both; }
+.animate-count-pulse   { animation: countPulse 0.4s  ease-out; }
+
+/* Stagger delays — 40ms steps (matches design file) */
+.stagger-0 { animation-delay: 0ms; }
+.stagger-1 { animation-delay: 40ms; }
+.stagger-2 { animation-delay: 80ms; }
+.stagger-3 { animation-delay: 120ms; }
+.stagger-4 { animation-delay: 160ms; }
+.stagger-5 { animation-delay: 200ms; }
+
+/* Shimmer skeleton */
+.skeleton-shimmer {
+  background: linear-gradient(90deg, var(--grey-100) 0%, var(--grey-200) 40%, var(--grey-100) 80%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+/* ── Row completion — the money moment ────────────────────────────── */
+
+/* Halo + collapse on the <tr> */
+.row-completing {
+  animation:
+    successHalo 0.6s ease-out,
+    rowFadeOut  0.28s 0.38s ease-in both;
+}
+
+/* Strikethrough animation on the summary text */
+.row-completing .task-summary {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: no-repeat;
+  background-position: left center;
+  background-size: 0% 1.5px;
+  animation: strikeThrough 0.22s 0.05s ease-out forwards;
+  color: var(--grey-500) !important;
+}
+
+/* Check button turns green and the icon pops */
+.row-completing .check-btn {
+  background: var(--status-replied) !important;
+  color: #fff !important;
+}
+.row-completing .check-btn svg {
+  animation: checkPop 0.35s ease-out;
+}
+
+/* Dismiss — slides left, no strikethrough */
+.row-dismissing {
+  animation: rowDismiss 0.28s ease-in both;
+}
+
+/* ── Card interactive lift ─────────────────────────────────────────── */
+.card-interactive {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+/* Button press */
+button:active:not(:disabled) {
+  transform: scale(0.97);
+  transition: transform 0.1s ease;
+}
+
+/* ── Vue page transition ───────────────────────────────────────────── */
+.page-enter-active { transition: opacity 0.25s ease-out, transform 0.25s ease-out; }
+.page-leave-active { transition: opacity 0.15s ease-in,  transform 0.15s ease-in;  }
+.page-enter-from   { opacity: 0; transform: translateY(8px);  }
+.page-leave-to     { opacity: 0; transform: translateY(-4px); }
+
+/* ── Vue filter transition ────────────────────────────────────────── */
+.filter-enter-active, .filter-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.filter-enter-from,   .filter-leave-to     { opacity: 0; transform: scale(0.97); }
+
+/* ── Reduced motion ───────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+  .row-completing { animation: rowFadeOut 0.01ms forwards !important; }
+}
+
+/* ── Poll progress bar ────────────────────────────────────────────── */
+@keyframes progress-indeterminate {
+  0%   { transform: translateX(-100%); width: 40%; }
+  50%  { transform: translateX(150%);  width: 40%; }
+  100% { transform: translateX(150%);  width: 40%; }
+}

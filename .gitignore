@@ -1,0 +1,55 @@
+# ── Python ────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ── Node / Vite ───────────────────────────────────────────────────────
+node_modules/
+frontend/dist/
+backend/todo_mail/dist/
+backend/dist/
+.vite/
+*.log
+
+# ── Secrets / credentials ─────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+client_secrets.json
+**/credentials.json
+**/token.json
+**/oauth_*.json
+
+# ── Local data ────────────────────────────────────────────────────────
+*.db
+*.db-journal
+*.sqlite
+*.sqlite-journal
+*.sqlite3
+
+# ── Internal planning / scratch docs (kept locally, not shared) ───────
+V2_PLAN.md
+REDESIGN_PLAN.md
+
+# ── IDE / OS ──────────────────────────────────────────────────────────
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.claude/

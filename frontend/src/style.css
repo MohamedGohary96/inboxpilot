@@ -1,0 +1,18 @@
+@import './assets/styles/todo-mail.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--brand-primary);
+    outline-offset: 1px;
+  }
+
+  button:focus:not(:focus-visible),
+  a:focus:not(:focus-visible) {
+    outline: none;
+  }
+}
