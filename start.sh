@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # One-shot launcher for InboxPilot.
-# Installs anything that's missing, then starts the app and opens the browser.
-# Safe to run multiple times — each step is skipped when already done.
+#   ./start.sh          → prod: backend serves the built frontend at :8765
+#   ./start.sh dev      → dev:  backend :8765 + Vite hot-reload at :5173 (opens :5173)
+# Installs anything that's missing. Safe to run multiple times.
 
 set -e
 
 cd "$(dirname "$0")"
+
+MODE="${1:-prod}"
 
 # ── Prereq checks ─────────────────────────────────────────────────────
 if ! command -v python3 >/dev/null 2>&1; then
@@ -30,8 +33,8 @@ if [ ! -d frontend/node_modules ]; then
   (cd frontend && npm install --silent)
 fi
 
-# ── 2. Frontend build (skip if up-to-date relative to source) ────────
-if [ ! -f backend/todo_mail/dist/index.html ]; then
+# ── 2. Frontend build (prod only — dev mode uses Vite directly) ──────
+if [ "$MODE" != "dev" ] && [ ! -f backend/todo_mail/dist/index.html ]; then
   echo "→ Building frontend…"
   (cd frontend && npm run build --silent)
   rm -rf backend/todo_mail/dist
@@ -69,5 +72,36 @@ EOF
 fi
 
 # ── 5. Launch ─────────────────────────────────────────────────────────
-echo "→ Starting InboxPilot at http://127.0.0.1:8765 …"
-exec todo-mail start
+if [ "$MODE" = "dev" ]; then
+  echo "→ Starting backend (no-browser) at http://127.0.0.1:8765 …"
+  todo-mail start --no-browser &
+  BACKEND_PID=$!
+
+  echo "→ Starting Vite dev server at http://localhost:5173 …"
+  (cd frontend && npm run dev --silent) &
+  VITE_PID=$!
+
+  cleanup() {
+    echo
+    echo "→ Stopping…"
+    kill "$BACKEND_PID" "$VITE_PID" 2>/dev/null || true
+    wait 2>/dev/null || true
+  }
+  trap cleanup INT TERM EXIT
+
+  # Wait for Vite to be ready, then open the browser
+  for _ in $(seq 1 30); do
+    if curl -s -o /dev/null -w '%{http_code}' http://localhost:5173/ | grep -q '^200$'; then
+      break
+    fi
+    sleep 0.5
+  done
+  open http://localhost:5173/ 2>/dev/null || true
+
+  echo
+  echo "InboxPilot is running. Press Ctrl+C to stop."
+  wait
+else
+  echo "→ Starting InboxPilot at http://127.0.0.1:8765 …"
+  exec todo-mail start
+fi
