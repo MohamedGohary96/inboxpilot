@@ -461,6 +461,28 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
         </button>
       </div>
 
+      <!-- Groq API key banner -->
+      <div
+        v-if="appStatus && !appStatus.groq_configured"
+        role="alert"
+        class="flex items-start gap-3 px-4 py-3 bg-amber-50 border-l-[3px] border-amber-500 text-amber-800 rounded-lg text-body"
+      >
+        <span class="text-base mt-0.5 shrink-0">⚡</span>
+        <div class="flex-1">
+          <p class="font-semibold">Groq API key not set</p>
+          <p class="text-caption text-amber-700">
+            AI classification and reply drafting are disabled. Add your key in Settings — get one free at
+            <a href="https://console.groq.com/keys" target="_blank" rel="noopener" class="underline">console.groq.com/keys</a>.
+          </p>
+        </div>
+        <button
+          @click="showSettings = true"
+          class="shrink-0 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-caption font-semibold rounded-lg transition-colors"
+        >
+          Open Settings
+        </button>
+      </div>
+
       <!-- Keyboard cheatsheet -->
       <Transition enter-active-class="animate-scale-in" leave-active-class="transition-opacity duration-100" leave-to-class="opacity-0">
         <div

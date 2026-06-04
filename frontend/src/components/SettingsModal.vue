@@ -167,6 +167,42 @@ async function disconnectSlack() {
     slackConnecting.value = false
   }
 }
+
+// ── Groq API key ─────────────────────────────────────────────────────
+const groqHasKey = ref(false)
+const groqKeyInput = ref('')
+const groqSaving = ref(false)
+const groqSaved = ref(false)
+const groqError = ref<string | null>(null)
+const showGroqInput = ref(false)
+
+async function loadGroqStatus() {
+  try {
+    const r = await api.getGroqKeyStatus()
+    groqHasKey.value = r.has_key
+  } catch { /* ignore */ }
+}
+
+async function saveGroqKey() {
+  const key = groqKeyInput.value.trim()
+  if (!key) return
+  groqSaving.value = true
+  groqError.value = null
+  try {
+    await api.setGroqKey(key)
+    groqHasKey.value = true
+    groqKeyInput.value = ''
+    showGroqInput.value = false
+    groqSaved.value = true
+    setTimeout(() => { groqSaved.value = false }, 1800)
+  } catch (e: unknown) {
+    groqError.value = e instanceof Error ? e.message : 'Could not save key'
+  } finally {
+    groqSaving.value = false
+  }
+}
+
+watch(() => props.open, (v) => { if (v) loadGroqStatus() })
 </script>
 
 <template>
@@ -348,6 +384,56 @@ async function disconnectSlack() {
 
           <!-- Priority senders (VIPs) -->
           <PrioritySendersSection />
+
+          <!-- Groq API key -->
+          <div class="border-t border-grey-100 pt-2 space-y-3">
+            <div class="flex items-center justify-between">
+              <p class="text-caption font-bold text-grey-700 uppercase tracking-wide">Groq API key</p>
+              <span
+                :class="[
+                  'text-micro font-semibold px-2 py-0.5 rounded-pill',
+                  groqHasKey ? 'bg-green-50 text-green-700 ring-1 ring-inset ring-green-200' : 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200',
+                ]"
+              >{{ groqHasKey ? 'Configured' : 'Not set' }}</span>
+            </div>
+
+            <p v-if="groqSaved" class="text-caption text-green-700 bg-green-50 rounded-lg px-3 py-2">API key saved.</p>
+            <p v-if="groqError" class="text-caption text-red-600 bg-red-50 rounded-lg px-3 py-2">{{ groqError }}</p>
+
+            <p class="text-caption text-grey-400">
+              Used for classifying emails, drafting replies, and summarizing GitHub news. Get a free key at
+              <a href="https://console.groq.com/keys" target="_blank" rel="noopener" class="text-brand-primary hover:underline">console.groq.com/keys</a>.
+              Stored locally in your macOS Keychain — never sent to anyone but Groq.
+            </p>
+
+            <div v-if="!showGroqInput">
+              <button
+                @click="showGroqInput = true; groqError = null"
+                class="w-full py-2 rounded-lg text-caption font-semibold bg-brand-primary hover:bg-brand-dark text-white transition-colors"
+              >{{ groqHasKey ? 'Update key' : 'Set API key' }}</button>
+            </div>
+            <div v-else class="space-y-2">
+              <input
+                v-model="groqKeyInput"
+                type="password"
+                placeholder="gsk_…"
+                class="w-full text-body border border-grey-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-brand-primary transition-shadow font-mono text-caption"
+                @keydown.enter="saveGroqKey"
+                autocomplete="off"
+              />
+              <div class="flex gap-2">
+                <button
+                  @click="saveGroqKey"
+                  :disabled="groqSaving || !groqKeyInput.trim()"
+                  class="flex-1 py-1.5 rounded-lg text-caption font-semibold bg-brand-primary hover:bg-brand-dark text-white disabled:opacity-50 transition-colors"
+                >{{ groqSaving ? 'Saving…' : 'Save' }}</button>
+                <button
+                  @click="showGroqInput = false; groqKeyInput = ''; groqError = null"
+                  class="flex-1 py-1.5 rounded-lg text-caption font-semibold bg-grey-100 hover:bg-grey-200 text-grey-700 transition-colors"
+                >Cancel</button>
+              </div>
+            </div>
+          </div>
 
           <!-- Slack integration -->
           <div class="border-t border-grey-100 pt-2 space-y-3">

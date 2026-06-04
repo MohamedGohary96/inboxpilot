@@ -28,6 +28,7 @@ export interface AppStatus {
   account_email: string | null
   reauth_state: ReauthState
   needs_reauth: boolean
+  groq_configured: boolean
   slack_connected: boolean
   total_messages: number
   total_tasks: number

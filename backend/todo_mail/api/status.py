@@ -27,11 +27,15 @@ def get_status(request: Request):
     from ..mail import needs_reauth
     gmail_needs_reauth = needs_reauth()
 
+    from ..classify import has_groq_api_key
+    groq_configured = has_groq_api_key()
+
     return {
         "authenticated": authenticated,
         "account_email": account_email,
         "reauth_state": reauth_state,
         "needs_reauth": gmail_needs_reauth,
+        "groq_configured": groq_configured,
         "slack_connected": slack_connected,
         "total_messages": total_messages,
         "total_tasks": total_tasks,

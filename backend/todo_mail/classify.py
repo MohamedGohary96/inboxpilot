@@ -143,8 +143,23 @@ _GROQ_API_KEY: str | None = get_secret("groq-api-key") or os.environ.get("GROQ_A
 
 def _get_client() -> Groq:
     if not _GROQ_API_KEY:
-        raise RuntimeError("No Groq API key — run 'todo-mail set-api-key'")
+        raise RuntimeError("No Groq API key — set one in Settings or run 'todo-mail set-api-key'")
     return Groq(api_key=_GROQ_API_KEY)
+
+
+def has_groq_api_key() -> bool:
+    return bool(_GROQ_API_KEY)
+
+
+def set_groq_api_key(key: str) -> None:
+    """Persist the key in the OS keyring and update the in-process cache."""
+    from .settings import set_secret
+    global _GROQ_API_KEY
+    key = (key or "").strip()
+    if not key:
+        raise ValueError("API key is empty")
+    set_secret("groq-api-key", key)
+    _GROQ_API_KEY = key
 
 
 def _coerce(data: dict) -> dict:

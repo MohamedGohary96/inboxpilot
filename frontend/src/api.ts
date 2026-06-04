@@ -107,6 +107,15 @@ export const api = {
       body: JSON.stringify({ key, value }),
     }),
 
+  getGroqKeyStatus: () =>
+    request<{ has_key: boolean }>('/settings/groq-key/status'),
+
+  setGroqKey: (key: string) =>
+    request<{ ok: boolean }>('/settings/groq-key', {
+      method: 'POST',
+      body: JSON.stringify({ key }),
+    }),
+
   getCalendarEvents: (from: Date, to: Date) =>
     request<{ events: CalendarEvent[] }>(
       `/calendar/events?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`
