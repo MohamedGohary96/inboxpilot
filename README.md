@@ -10,12 +10,13 @@ Runs entirely on your Mac. The only thing leaving your machine is the message su
 
 - **AI inbox triage** — every email and Slack DM is classified as a task or noise by Groq (Llama 3.3). Pre-filter strips out newsletters and automated alerts before they hit the LLM.
 - **Smart deadlines** — extracts "by Friday EOD" / "tomorrow at 3pm" from message text and turns it into a reply-by datetime, with overdue / 1h / 24h reminders via macOS notifications.
-- **AI reply drafter** — write the reply in your voice from a one-line instruction ("decline politely", "ask for more time"), or just hit Generate for a default professional reply.
-- **Smart meeting booking** — type "Book a meeting tomorrow at 11 AM for 30 minutes" in the reply box and it'll find a free slot on your Google Calendar and send an invite to the sender.
-- **Calendar view** — week grid showing your existing events plus the reply-by deadlines as todo blocks.
-- **GitHub news tab** — separates PR / issue / release / security / discussion / newsletter mails by repo, with optional LLM one-line summaries and direct "Open in GitHub" links.
+- **AI reply drafter** — write the reply in your voice from a one-line instruction ("decline politely", "ask for more time"), or just hit Generate for a default professional reply. One-click **Open in Gmail** pre-fills the compose window.
+- **Smart meeting booking** — type "Book a meeting tomorrow at 11 AM for 30 minutes" in the same reply-instructions box. The app finds a free slot on your Google Calendar, sends an invite to the sender (and adds you as an attendee), then drafts a confirmation reply — all in one shot.
+- **Calendar view** — week grid showing your existing Google Calendar events plus the reply-by deadlines as todo blocks.
+- **GitHub news tab** — separates PR / issue / release / security / discussion / newsletter mails by repo. Each item shows the event line ("@user approved this pull request"), an "Open in GitHub" deep link to the PR/Issue/Discussion, optional LLM one-line summary on demand, and a "task" badge when the same mail is also tracked as a to-do.
+- **Connection awareness** — colored dot on the account avatar (green = OK, amber = Gmail session expired). Banners prompt re-authentication when needed and call out a missing Groq API key.
 - **Priority senders (VIPs)** — flag specific emails as high-priority with custom reply windows (e.g., respond to the CEO within 2 hours).
-- **Slack DMs** — opt-in. Pulls Slack direct messages into the same task list.
+- **Slack DMs** — opt-in. Pulls Slack direct messages into the same task list, with smart classification and the same AI reply / meeting features.
 
 ---
 
@@ -105,7 +106,19 @@ On first run, open **Settings** (gear icon) to:
 
 ## Configuration
 
-`~/.config/todo-mail/config.json` (optional — defaults shown):
+Everything you'll touch day-to-day lives in **Settings** (gear icon in the header):
+
+- **Display name** — used in AI-drafted reply sign-offs. Leave blank to derive from your email.
+- **Groq API key** — set / rotate from the UI, stored in the macOS Keychain.
+- **Poll interval** (default 5 min) — how often Gmail and Slack are checked.
+- **Reply-by defaults** — fallback window (days + hour) when the LLM finds no explicit deadline.
+- **Reminder offsets** — when desktop notifications fire (default 24h, 1h, 0h before deadline).
+- **Gmail query filter** — point-and-click builder for `is:unread`, category excludes, look-back window.
+- **Slack token** + **look-back days** — opt-in pull of Slack DMs.
+- **Priority senders (VIPs)** — per-sender reply windows (e.g., respond to the CEO within 2 hours).
+- **Re-authenticate / Sign out of Gmail** — straight from the account menu.
+
+For advanced tweaks, edit `~/.config/todo-mail/config.json` (optional, defaults shown):
 
 ```json
 {
@@ -114,14 +127,6 @@ On first run, open **Settings** (gear icon) to:
   "pre_filter": true
 }
 ```
-
-In-app settings (gear icon → Settings):
-
-- **Poll interval** (default 5 min)
-- **Reply-by defaults** (days + hour)
-- **Reminder offsets** (default 24h, 1h, 0h before deadline)
-- **Gmail query filter** (e.g., `-category:promotions`)
-- **Slack token**, **Priority senders** management
 
 ---
 
@@ -144,10 +149,12 @@ cd backend && pytest
 
 | Symptom | Fix |
 |---|---|
-| "Gmail session expired" amber banner | Click **Reconnect Gmail** in the account menu — happens when Google revokes the refresh token (every 7 days for unverified OAuth apps in testing). |
-| Polling stops silently | Check `/tmp/backend.log` (or the terminal) — the most common cause is an expired Groq quota. Generate a new key and run `todo-mail set-api-key`. |
+| "Gmail session expired" amber banner | Click **Reconnect Gmail** in the account menu — happens when Google revokes the refresh token (every 7 days for unverified OAuth apps in testing). The avatar dot turns amber when this happens. |
+| "Groq API key not set" amber banner | Open **Settings → Groq API key → Set key**. Get a free key at [console.groq.com/keys](https://console.groq.com/keys). |
+| Polling stops silently | Check the terminal where you ran `todo-mail start`. Most common cause is an expired Groq quota — generate a new key and paste it in **Settings → Groq API key**. |
 | Port 8765 already in use | `lsof -ti :8765 \| xargs kill -9` |
 | Contact photos not showing | Make sure People API is enabled on your Google Cloud project, then hard-refresh the browser. |
+| GitHub PR / Issue mails missing from News tab | The detector keys off `[owner/repo]` in the subject and `(PR #…) / (Issue #…)`. If your mails follow a different format, open an issue with a sample subject. |
 
 ---
 
