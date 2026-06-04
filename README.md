@@ -46,6 +46,20 @@ Runs entirely on your Mac. The only thing leaving your machine is the message su
 
 ## Setup
 
+### Quick start (recommended)
+
+```bash
+git clone https://github.com/MohamedGohary96/inboxpilot.git
+cd inboxpilot
+./start.sh
+```
+
+`start.sh` installs anything that's missing (frontend deps, frontend build, backend CLI), then starts the app and opens it in your browser. It's safe to re-run — each step is skipped if already done.
+
+If `client_secrets.json` hasn't been placed yet, the script tells you exactly where to put it and opens that folder in Finder.
+
+### Manual setup (if you'd rather do it yourself)
+
 ```bash
 # 1. Clone the repo
 git clone https://github.com/MohamedGohary96/inboxpilot.git
@@ -93,6 +107,8 @@ In the running app, open **Settings → Slack** and paste your User OAuth Token.
 ## Running
 
 ```bash
+./start.sh         # one-shot: install-if-needed → run → open browser
+# or, after first setup:
 todo-mail start
 ```
 
