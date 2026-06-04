@@ -44,6 +44,7 @@ client_secrets.json
 # ── Internal planning / scratch docs (kept locally, not shared) ───────
 V2_PLAN.md
 REDESIGN_PLAN.md
+DESIGN.md
 
 # ── IDE / OS ──────────────────────────────────────────────────────────
 .idea/
