@@ -34,8 +34,18 @@ if [ ! -d frontend/node_modules ]; then
 fi
 
 # ── 2. Frontend build (prod only — dev mode uses Vite directly) ──────
-if [ "$MODE" != "dev" ] && [ ! -f backend/todo_mail/dist/index.html ]; then
-  echo "→ Building frontend…"
+needs_build() {
+  [ ! -f backend/todo_mail/dist/index.html ] && return 0
+  # Rebuild if any source file is newer than the bundled dist
+  if find frontend/src frontend/index.html frontend/package.json frontend/tailwind.config.js frontend/vite.config.ts \
+       -type f -newer backend/todo_mail/dist/index.html 2>/dev/null | grep -q .; then
+    return 0
+  fi
+  return 1
+}
+
+if [ "$MODE" != "dev" ] && needs_build; then
+  echo "→ Building frontend (source newer than current bundle)…"
   (cd frontend && npm run build --silent)
   rm -rf backend/todo_mail/dist
   cp -r frontend/dist backend/todo_mail/dist

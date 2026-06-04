@@ -143,7 +143,17 @@ if _DIST.exists():
 
     @app.get("/{full_path:path}", include_in_schema=False)
     def spa(full_path: str):
-        return FileResponse(str(_DIST / "index.html"))
+        # index.html must never be cached — its name is stable but the hashed
+        # asset URLs it references change on every build. If a stale HTML is
+        # served, the browser keeps pointing at deleted asset files.
+        return FileResponse(
+            str(_DIST / "index.html"),
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
 else:
     from fastapi.responses import HTMLResponse
 
