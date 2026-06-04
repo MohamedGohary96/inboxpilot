@@ -160,20 +160,23 @@ def slack_logout():
 @app.command()
 def setup():
     """Print setup instructions for Google OAuth credentials."""
-    target = Path.home() / ".config" / "todo-mail" / "client_secrets.json"
+    target = Path.home() / "inboxpilot" / "client_secrets.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
     typer.echo(f"""
 Setup instructions
 ──────────────────
 1. Go to https://console.cloud.google.com/
 2. Create a project (or select an existing one)
-3. Enable these two APIs:
+3. Enable these APIs:
      • Gmail API
      • Google Calendar API
+     • People API
+     • Contacts API
 4. APIs & Services → Credentials → Create credentials → OAuth 2.0 Client ID
 5. Application type: Desktop app
-6. Download the JSON file
-7. Save it to:
-     {target}
+6. Download the JSON file and rename it to:  client_secrets.json
+7. Move it into this folder (already created for you):
+     {target.parent}
 
 Then run:  todo-mail start
 """)

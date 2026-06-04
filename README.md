@@ -67,9 +67,11 @@ make build      # copies the build into the backend package
 4. **Credentials** → Create credentials → OAuth client ID → **Desktop app**.
 5. Download the JSON, rename it to `client_secrets.json`, and put it at:
    ```
-   ~/.config/todo-mail/client_secrets.json
+   ~/inboxpilot/client_secrets.json
    ```
-   (See `client_secrets.example.json` in this repo for the expected shape.)
+   This folder is visible in your home directory (no hidden-folder hunt). The example file shape is in `client_secrets.example.json` at the root of this repo.
+
+   _Backward-compat: the old hidden path `~/.config/todo-mail/client_secrets.json` still works if you already have one there._
 
 ### Groq API key
 

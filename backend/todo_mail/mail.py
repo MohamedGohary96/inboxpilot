@@ -136,8 +136,10 @@ SCOPES = [
 ]
 
 _SECRETS_CANDIDATES = [
-    Path.home() / ".config" / "todo-mail" / "client_secrets.json",
-    Path("client_secrets.json"),
+    Path.home() / "inboxpilot" / "client_secrets.json",            # visible in home (default)
+    Path.home() / "Documents" / "inboxpilot" / "client_secrets.json",  # also visible
+    Path.home() / ".config" / "todo-mail" / "client_secrets.json",     # legacy hidden
+    Path("client_secrets.json"),                                       # CWD fallback
 ]
 
 
@@ -197,14 +199,17 @@ def ensure_authenticated() -> Credentials:
 
     secrets_path = _find_secrets()
     if not secrets_path:
+        # Create the visible default folder so the user has somewhere obvious to drop the file
+        _SECRETS_CANDIDATES[0].parent.mkdir(parents=True, exist_ok=True)
         raise RuntimeError(
             "\n\nNo client_secrets.json found.\n\n"
             "To set up:\n"
             "  1. Go to https://console.cloud.google.com/\n"
-            "  2. Create a project, enable Gmail API and Google Calendar API\n"
+            "  2. Create a project, enable Gmail API, Calendar API, People API\n"
             "  3. Create OAuth 2.0 credentials  →  type: Desktop app\n"
-            "  4. Download the JSON and save it to:\n"
-            f"       {_SECRETS_CANDIDATES[0]}\n\n"
+            "  4. Download the JSON, rename it to client_secrets.json\n"
+            "  5. Move it into this folder (already created for you):\n"
+            f"       {_SECRETS_CANDIDATES[0].parent}\n\n"
             "Then run:  todo-mail start\n"
         )
 
