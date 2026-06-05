@@ -1,5 +1,8 @@
 """
-Runtime configuration loaded from ~/.config/todo-mail/config.json.
+Runtime configuration loaded from a per-OS user config dir:
+  macOS:   ~/Library/Application Support/inboxpilot/config.json
+  Linux:   ~/.config/inboxpilot/config.json
+  Windows: %APPDATA%\\inboxpilot\\config.json
 
 Create or edit that file to override defaults without reinstalling.
 All keys are optional; missing keys fall back to the values in DEFAULTS.
@@ -15,9 +18,14 @@ import json
 import logging
 from pathlib import Path
 
+from platformdirs import user_config_dir
+
 logger = logging.getLogger(__name__)
 
-_CONFIG_PATH = Path.home() / ".config" / "todo-mail" / "config.json"
+_CONFIG_PATH = Path(user_config_dir("inboxpilot")) / "config.json"
+
+# Legacy location — read transparently if the new one doesn't exist
+_LEGACY_CONFIG_PATH = Path.home() / ".config" / "todo-mail" / "config.json"
 
 DEFAULTS: dict = {
     "model":          "llama-3.3-70b-versatile",
@@ -45,15 +53,16 @@ def reload() -> dict:
 
 
 def _read() -> dict:
-    if not _CONFIG_PATH.exists():
+    path = _CONFIG_PATH if _CONFIG_PATH.exists() else _LEGACY_CONFIG_PATH
+    if not path.exists():
         return dict(DEFAULTS)
     try:
-        with open(_CONFIG_PATH) as f:
+        with open(path) as f:
             overrides = json.load(f)
         cfg = {**DEFAULTS, **overrides}
         logger.info("Loaded config from %s: model=%s prompt_version=%s",
-                    _CONFIG_PATH, cfg["model"], cfg["prompt_version"])
+                    path, cfg["model"], cfg["prompt_version"])
         return cfg
     except Exception as e:
-        logger.warning("Could not read %s (%s) — using defaults", _CONFIG_PATH, e)
+        logger.warning("Could not read %s (%s) — using defaults", path, e)
         return dict(DEFAULTS)

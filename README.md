@@ -28,14 +28,22 @@ Runs entirely on your Mac. The only thing leaving your machine is the message su
 | Frontend     | Vue 3 + TypeScript + Tailwind, served from the same FastAPI process |
 | LLM          | Groq (`llama-3.3-70b-versatile` by default) |
 | Integrations | Gmail API, Google Calendar API, Google People API, Slack Web API |
-| Credentials  | macOS Keychain (via `keyring`) |
-| Data         | `~/.local/share/todo-mail/todo.db` — never leaves your machine |
+| Credentials  | OS-native keyring (macOS Keychain · Windows Credential Locker · Linux Secret Service / KWallet) |
+| Data         | per-OS user data dir via [`platformdirs`](https://pypi.org/project/platformdirs/) — never leaves your machine |
+| Notifications| `pync` on macOS, `plyer` on Linux/Windows, with graceful fallbacks |
 
 ---
 
+## Platform support
+
+| Platform | Status | Notes |
+|---|---|---|
+| **macOS 12+** | ✓ Primary | Native notifications with click-to-open; tested daily by the author |
+| **Linux**     | ✓ Supported | Notifications need `libnotify-bin` or D-Bus; no click handler on toasts |
+| **Windows 10/11** | ✓ Supported | Use `start.ps1` instead of `start.sh`; toasts via `plyer`; no click handler |
+
 ## Prerequisites
 
-- **macOS** (the desktop notifications use `pync`; everything else is cross-platform)
 - **Python 3.11+**
 - **Node 20+**
 - **Google Cloud project** with the Gmail API, Calendar API, and People API enabled — you'll download an OAuth `client_secrets.json` from it
@@ -48,15 +56,23 @@ Runs entirely on your Mac. The only thing leaving your machine is the message su
 
 ### Quick start (recommended)
 
+**macOS / Linux:**
 ```bash
 git clone https://github.com/MohamedGohary96/inboxpilot.git
 cd inboxpilot
 ./start.sh
 ```
 
-`start.sh` installs anything that's missing (frontend deps, frontend build, backend CLI), then starts the app and opens it in your browser. It's safe to re-run — each step is skipped if already done.
+**Windows (PowerShell):**
+```powershell
+git clone https://github.com/MohamedGohary96/inboxpilot.git
+cd inboxpilot
+.\start.ps1
+```
 
-If `client_secrets.json` hasn't been placed yet, the script tells you exactly where to put it and opens that folder in Finder.
+The launcher installs anything that's missing (frontend deps, frontend build, backend CLI), then starts the app and opens it in your browser. Safe to re-run — each step is skipped if already done.
+
+If `client_secrets.json` hasn't been placed yet, the script tells you exactly where to put it and opens that folder in your file manager.
 
 ### Manual setup (if you'd rather do it yourself)
 
@@ -81,10 +97,10 @@ make build      # copies the build into the backend package
 3. **OAuth consent screen** → External, add your own Gmail as a test user.
 4. **Credentials** → Create credentials → OAuth client ID → **Desktop app**.
 5. Download the JSON, rename it to `client_secrets.json`, and put it at:
-   ```
-   ~/inboxpilot/client_secrets.json
-   ```
-   This folder is visible in your home directory (no hidden-folder hunt). The example file shape is in `client_secrets.example.json` at the root of this repo.
+   - **macOS / Linux**: `~/inboxpilot/client_secrets.json`
+   - **Windows**: `%USERPROFILE%\inboxpilot\client_secrets.json`
+
+   This folder is visible in your home directory on every platform — no hidden-folder hunt. The launcher creates it for you on first run. The example file shape is in `client_secrets.example.json` at the root of this repo.
 
 
 ### Groq API key
@@ -171,6 +187,8 @@ cd backend && pytest
 | Port 8765 already in use | `lsof -ti :8765 \| xargs kill -9` |
 | Contact photos not showing | Make sure People API is enabled on your Google Cloud project, then hard-refresh the browser. |
 | GitHub PR / Issue mails missing from News tab | The detector keys off `[owner/repo]` in the subject and `(PR #…) / (Issue #…)`. If your mails follow a different format, open an issue with a sample subject. |
+| No desktop notifications on Linux | Install `libnotify-bin` (`sudo apt install libnotify-bin`) — `plyer` falls back to `notify-send`. |
+| No notifications on Windows | First run installs `plyer`; toast support relies on Windows 10+ Action Center. Make sure Focus Assist isn't blocking notifications. |
 
 ---
 

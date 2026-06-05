@@ -1,12 +1,40 @@
+import logging
+import shutil
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 
-DB_PATH = Path.home() / ".local" / "share" / "todo-mail" / "todo.db"
+from platformdirs import user_data_dir
+
+logger = logging.getLogger(__name__)
+
+# Per-OS data dir:
+#   macOS:   ~/Library/Application Support/inboxpilot/todo.db
+#   Linux:   ~/.local/share/inboxpilot/todo.db
+#   Windows: %LOCALAPPDATA%\inboxpilot\todo.db
+DB_PATH = Path(user_data_dir("inboxpilot")) / "todo.db"
+
+# Pre-rename legacy location used by `todo-mail` <= v0.1.
+_LEGACY_DB_PATH = Path.home() / ".local" / "share" / "todo-mail" / "todo.db"
+_DEFAULT_DB_PATH = DB_PATH  # snapshot, used to gate the migration
 
 
 def _ensure_dir() -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+
+def _maybe_migrate_legacy() -> None:
+    """Copy the legacy DB to the new location on first run. Skipped if a test
+    fixture has redirected DB_PATH away from the platform default."""
+    if DB_PATH != _DEFAULT_DB_PATH:
+        return
+    if DB_PATH.exists() or not _LEGACY_DB_PATH.exists():
+        return
+    try:
+        shutil.copy2(_LEGACY_DB_PATH, DB_PATH)
+        logger.info("Migrated legacy DB %s → %s", _LEGACY_DB_PATH, DB_PATH)
+    except Exception:
+        logger.exception("Could not migrate legacy DB; starting fresh")
 
 
 def _migrate_db(conn) -> None:
@@ -123,6 +151,7 @@ def _migrate_priority_senders(conn) -> None:
 
 def init_db() -> None:
     _ensure_dir()
+    _maybe_migrate_legacy()
     with get_conn() as conn:
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS messages (

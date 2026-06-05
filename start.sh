@@ -10,6 +10,16 @@ cd "$(dirname "$0")"
 
 MODE="${1:-prod}"
 
+# Cross-platform "open this file/URL with the default handler".
+# Mac uses `open`, Linux uses `xdg-open`. Silently no-ops elsewhere.
+xopen() {
+  if command -v open >/dev/null 2>&1; then
+    open "$@" 2>/dev/null || true
+  elif command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "$@" 2>/dev/null || true
+  fi
+}
+
 # ── Prereq checks ─────────────────────────────────────────────────────
 if ! command -v python3 >/dev/null 2>&1; then
   echo "✗ Python 3 not found. Install it from https://www.python.org/downloads/ and rerun." >&2
@@ -77,7 +87,7 @@ if [ ! -f "$HOME/inboxpilot/client_secrets.json" ] \
    Then run ./start.sh again.
 
 EOF
-  open "$HOME/inboxpilot" 2>/dev/null || true
+  xopen "$HOME/inboxpilot"
   exit 1
 fi
 
@@ -106,7 +116,7 @@ if [ "$MODE" = "dev" ]; then
     fi
     sleep 0.5
   done
-  open http://localhost:5173/ 2>/dev/null || true
+  xopen http://localhost:5173/
 
   echo
   echo "InboxPilot is running. Press Ctrl+C to stop."
