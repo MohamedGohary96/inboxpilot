@@ -24,6 +24,7 @@ export type ReauthState = 'idle' | 'pending' | 'done' | 'error'
 
 export interface AppStatus {
   authenticated: boolean
+  has_credentials: boolean
   account_email: string | null
   reauth_state: ReauthState
   needs_reauth: boolean

@@ -8,7 +8,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .api import auth, calendar, contacts, feedback, metrics, news, poll, priority_senders, settings_api, status, tasks, slack_auth
+from .api import auth, calendar, contacts, feedback, metrics, news, poll, priority_senders, settings_api, setup, status, tasks, slack_auth
 from .db import init_db
 
 class _JsonFormatter(logging.Formatter):
@@ -120,6 +120,7 @@ async def log_requests(request: Request, call_next) -> Response:
     return response
 
 app.include_router(auth.router, prefix="/api")
+app.include_router(setup.router, prefix="/api")
 app.include_router(slack_auth.router, prefix="/api")
 app.include_router(tasks.router, prefix="/api")
 app.include_router(poll.router, prefix="/api")
