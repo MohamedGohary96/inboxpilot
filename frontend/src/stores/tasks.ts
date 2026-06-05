@@ -24,6 +24,14 @@ export const useTaskStore = defineStore('tasks', () => {
     () => tasks.value.length > 0 && tasks.value.every(t => selectedIds.value.has(t.id)),
   )
 
+  // Selection breakdown so the bulk bar can show the right action mix.
+  const hasOpenSelection = computed(
+    () => tasks.value.some(t => selectedIds.value.has(t.id) && t.status === 'open'),
+  )
+  const hasNonOpenSelection = computed(
+    () => tasks.value.some(t => selectedIds.value.has(t.id) && t.status !== 'open'),
+  )
+
   // ── data ─────────────────────────────────────────────────────────────────
 
   async function fetchTasks() {
@@ -143,6 +151,10 @@ export const useTaskStore = defineStore('tasks', () => {
 
   async function dismiss(id: number) {
     await applyStatusChange(id, 'dismissed')
+  }
+
+  async function reopen(id: number) {
+    await applyStatusChange(id, 'open')
   }
 
   async function markNotATask(id: number) {
@@ -272,6 +284,10 @@ export const useTaskStore = defineStore('tasks', () => {
     await bulkApplyStatus('dismissed')
   }
 
+  async function bulkReopen() {
+    await bulkApplyStatus('open')
+  }
+
   async function bulkSetCompletion(completion: Completion) {
     const ids = [...selectedIds.value]
     if (ids.length === 0) return
@@ -298,11 +314,12 @@ export const useTaskStore = defineStore('tasks', () => {
   return {
     tasks, activeFilter, advancedFilters, loading, polling, lastPolled, error,
     selectedIds, linksByTask, overdueCount, hasSelection, allSelected,
+    hasOpenSelection, hasNonOpenSelection,
     fetchTasks, setFilter, setAdvancedFilters, clearAdvancedFilters,
     triggerPoll, updateReplyBy, updateTask,
-    markReplied, dismiss, markNotATask, wrongDeadline, createTask,
+    markReplied, dismiss, reopen, markNotATask, wrongDeadline, createTask,
     toggleSelect, toggleSelectAll, clearSelection,
-    bulkMarkReplied, bulkDismiss, bulkSetCompletion,
+    bulkMarkReplied, bulkDismiss, bulkReopen, bulkSetCompletion,
     loadLinks, addLink, removeLink,
   }
 })

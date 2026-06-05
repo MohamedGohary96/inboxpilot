@@ -10,6 +10,7 @@ import {
   X as XMarkIcon,
   Clipboard as ClipboardDocumentIcon,
   Github as GithubIcon,
+  RotateCcw as RotateCcwIcon,
 } from 'lucide-vue-next'
 import { useTaskStore } from './stores/tasks'
 import FilterChips from './components/FilterChips.vue'
@@ -202,6 +203,19 @@ async function onDismiss(id: number) {
   })
 }
 
+async function onReopen(id: number) {
+  const task = store.tasks.find(t => t.id === id)
+  const label = task?.summary ?? task?.subject ?? 'Task'
+  const previous = task?.status ?? 'replied'  // remember so undo can restore
+  await store.reopen(id)
+  fetchStatus()
+  toast.show(`"${label}" reopened`, 'success', async () => {
+    await api.updateStatus(id, previous)
+    await store.fetchTasks()
+    fetchStatus()
+  })
+}
+
 // --- quick add ---
 const quickAddRef = ref<InstanceType<typeof QuickAddBar> | null>(null)
 
@@ -266,6 +280,16 @@ function onKeyDown(e: KeyboardEvent) {
         const dt = store.tasks[focusedIndex.value]
         onDismiss(dt.id)
         announce(`Dismissed "${dt.summary ?? dt.subject}"`)
+      }
+      break
+    case 'o':
+      if (focusedIndex.value !== undefined) {
+        e.preventDefault()
+        const ot = store.tasks[focusedIndex.value]
+        if (ot.status !== 'open') {
+          onReopen(ot.id)
+          announce(`Reopened "${ot.summary ?? ot.subject}"`)
+        }
       }
       break
     case 'x':
@@ -458,6 +482,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
           <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">e</kbd> edit reply-by</span>
           <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">r</kbd> mark replied</span>
           <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">d</kbd> dismiss</span>
+          <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">o</kbd> reopen</span>
           <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">x</kbd> toggle select</span>
           <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">Esc</kbd> deselect all</span>
           <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">?</kbd> this panel</span>
@@ -639,21 +664,32 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
                 {{ store.selectedIds.size }} selected
               </span>
               <div class="h-4 w-px bg-brand-light" />
+              <template v-if="store.hasOpenSelection">
+                <button
+                  @click="store.bulkMarkReplied(); fetchStatus()"
+                  class="flex items-center gap-1.5 px-3 py-1.5 bg-brand-primary hover:bg-brand-dark text-white text-caption font-semibold rounded-lg transition-colors"
+                  aria-label="Mark selected open tasks as replied"
+                >
+                  <CheckIcon class="w-3.5 h-3.5" />
+                  Mark replied
+                </button>
+                <button
+                  @click="store.bulkDismiss(); fetchStatus()"
+                  class="flex items-center gap-1.5 px-3 py-1.5 bg-brand-50 hover:bg-brand-lightest text-brand-primary border border-brand-light text-caption font-semibold rounded-lg transition-colors"
+                  aria-label="Dismiss selected open tasks"
+                >
+                  <XMarkIcon class="w-3.5 h-3.5" />
+                  Dismiss
+                </button>
+              </template>
               <button
-                @click="store.bulkMarkReplied"
+                v-if="store.hasNonOpenSelection"
+                @click="store.bulkReopen(); fetchStatus()"
                 class="flex items-center gap-1.5 px-3 py-1.5 bg-brand-primary hover:bg-brand-dark text-white text-caption font-semibold rounded-lg transition-colors"
-                aria-label="Mark selected tasks as replied"
+                aria-label="Reopen selected tasks"
               >
-                <CheckIcon class="w-3.5 h-3.5" />
-                Mark replied
-              </button>
-              <button
-                @click="store.bulkDismiss"
-                class="flex items-center gap-1.5 px-3 py-1.5 bg-brand-50 hover:bg-brand-lightest text-brand-primary border border-brand-light text-caption font-semibold rounded-lg transition-colors"
-                aria-label="Dismiss selected tasks"
-              >
-                <XMarkIcon class="w-3.5 h-3.5" />
-                Dismiss
+                <RotateCcwIcon class="w-3.5 h-3.5" />
+                Reopen
               </button>
               <button
                 @click="store.clearSelection"
@@ -713,6 +749,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
               @update-task="(id, data) => store.updateTask(id, data)"
               @mark-replied="onMarkReplied"
               @dismiss="onDismiss"
+              @reopen="onReopen"
               @not-a-task="store.markNotATask"
               @toggle-select="store.toggleSelect"
               @toggle-select-all="store.toggleSelectAll"

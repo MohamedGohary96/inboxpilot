@@ -4,6 +4,7 @@ import VueDatePicker from '@vuepic/vue-datepicker'
 import {
   Check as CheckIcon,
   X as XMarkIcon,
+  RotateCcw as RotateCcwIcon,
   Flag as FlagIcon,
   ExternalLink as ArrowTopRightOnSquareIcon,
   Sparkles as SparklesIcon,
@@ -28,9 +29,12 @@ const emit = defineEmits<{
   'update-task': [data: { title?: string; priority?: import('../types').Priority; completion?: import('../types').Completion }]
   'mark-replied': []
   dismiss: []
+  reopen: []
   'not-a-task': []
   'toggle-select': []
 }>()
+
+const isOpen = computed(() => props.task.status === 'open')
 
 // ── Status ────────────────────────────────────────────────────────────
 const isOverdue = computed(
@@ -262,6 +266,14 @@ async function onDismiss() {
   completingDismiss.value = true
   await new Promise(r => setTimeout(r, ANIM_MS))
   emit('dismiss')
+}
+
+const reopening = ref(false)
+async function onReopen() {
+  if (reopening.value) return
+  reopening.value = true
+  await new Promise(r => setTimeout(r, ANIM_MS))
+  emit('reopen')
 }
 
 // ── Secondary overflow dropdown ───────────────────────────────────────
@@ -507,32 +519,49 @@ watch(() => props.focused, (v) => {
         <!-- Separator -->
         <div class="w-px h-4 bg-grey-200 mx-1 shrink-0" aria-hidden="true"></div>
 
-        <!-- Dismiss -->
+        <template v-if="isOpen">
+          <!-- Dismiss -->
+          <button
+            @click.stop="onDismiss"
+            :disabled="completing || completingDismiss"
+            title="Dismiss (d)"
+            aria-label="Dismiss task"
+            :class="[
+              'w-[30px] h-[30px] rounded-lg inline-flex items-center justify-center transition-colors',
+              completingDismiss ? 'bg-grey-200 text-grey-600' : 'hover:bg-grey-100 text-grey-400 hover:text-grey-700',
+            ]"
+          >
+            <XMarkIcon class="w-[15px] h-[15px]" />
+          </button>
+
+          <!-- Mark replied / Done — check-btn class triggers checkPop + green bg on completing -->
+          <button
+            @click.stop="onMarkReplied"
+            :disabled="completing || completingDismiss"
+            :title="isManual ? 'Mark done (r)' : 'Mark replied (r)'"
+            :aria-label="isManual ? 'Mark done' : 'Mark replied'"
+            :class="[
+              'check-btn w-[30px] h-[30px] rounded-lg inline-flex items-center justify-center transition-colors',
+              completing ? 'bg-status-replied text-white' : 'hover:bg-green-100 text-grey-400 hover:text-green-600',
+            ]"
+          >
+            <CheckIcon class="w-[15px] h-[15px]" />
+          </button>
+        </template>
+
+        <!-- Reopen — shown for replied / dismissed rows -->
         <button
-          @click.stop="onDismiss"
-          :disabled="completing || completingDismiss"
-          title="Dismiss (d)"
-          aria-label="Dismiss task"
+          v-else
+          @click.stop="onReopen"
+          :disabled="reopening"
+          title="Reopen task (o)"
+          aria-label="Reopen task"
           :class="[
             'w-[30px] h-[30px] rounded-lg inline-flex items-center justify-center transition-colors',
-            completingDismiss ? 'bg-grey-200 text-grey-600' : 'hover:bg-grey-100 text-grey-400 hover:text-grey-700',
+            reopening ? 'bg-brand-primary text-white' : 'hover:bg-brand-lightest text-grey-400 hover:text-brand-primary',
           ]"
         >
-          <XMarkIcon class="w-[15px] h-[15px]" />
-        </button>
-
-        <!-- Mark replied / Done — check-btn class triggers checkPop + green bg on completing -->
-        <button
-          @click.stop="onMarkReplied"
-          :disabled="completing || completingDismiss"
-          :title="isManual ? 'Mark done (r)' : 'Mark replied (r)'"
-          :aria-label="isManual ? 'Mark done' : 'Mark replied'"
-          :class="[
-            'check-btn w-[30px] h-[30px] rounded-lg inline-flex items-center justify-center transition-colors',
-            completing ? 'bg-status-replied text-white' : 'hover:bg-green-100 text-grey-400 hover:text-green-600',
-          ]"
-        >
-          <CheckIcon class="w-[15px] h-[15px]" />
+          <RotateCcwIcon class="w-[15px] h-[15px]" />
         </button>
 
         <!-- Secondary overflow — Not a task / Open in Gmail -->

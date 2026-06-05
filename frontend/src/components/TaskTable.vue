@@ -19,6 +19,7 @@ const emit = defineEmits<{
   'update-task':       [id: number, data: { title?: string; priority?: import('../types').Priority }]
   'mark-replied':      [id: number]
   dismiss:             [id: number]
+  reopen:              [id: number]
   'not-a-task':        [id: number]
   'toggle-select':     [id: number]
   'toggle-select-all': []
@@ -102,6 +103,7 @@ const emptyMessages: Record<string, { title: string; message: string }> = {
           @update-task="data => emit('update-task', task.id, data)"
           @mark-replied="emit('mark-replied', task.id)"
           @dismiss="emit('dismiss', task.id)"
+          @reopen="emit('reopen', task.id)"
           @not-a-task="emit('not-a-task', task.id)"
           @toggle-select="emit('toggle-select', task.id)"
         />
