@@ -22,6 +22,7 @@ import NewsView from './components/NewsView.vue'
 import AccountMenu from './components/AccountMenu.vue'
 import ReauthModal from './components/ReauthModal.vue'
 import SettingsModal from './components/SettingsModal.vue'
+import OnboardingWizard from './components/OnboardingWizard.vue'
 import ToastContainer from './components/ui/Toast.vue'
 import { useToast } from './composables/useToast'
 import { api } from './api'
@@ -314,6 +315,13 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
 </script>
 
 <template>
+  <!-- Onboarding wizard — shown when client_secrets.json is missing -->
+  <OnboardingWizard
+    v-if="appStatus && !appStatus.has_credentials"
+    @done="async () => { await fetchStatus(); await store.fetchTasks() }"
+  />
+
+  <template v-else>
   <!-- Screen-reader live region -->
   <div aria-live="polite" aria-atomic="true" class="sr-only">{{ srAnnounce }}</div>
 
@@ -759,4 +767,5 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
       </template>
     </main>
   </div>
+  </template>
 </template>

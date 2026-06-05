@@ -30,8 +30,12 @@ def get_status(request: Request):
     from ..classify import has_groq_api_key
     groq_configured = has_groq_api_key()
 
+    from ..mail import _find_secrets
+    has_credentials = _find_secrets() is not None
+
     return {
         "authenticated": authenticated,
+        "has_credentials": has_credentials,
         "account_email": account_email,
         "reauth_state": reauth_state,
         "needs_reauth": gmail_needs_reauth,

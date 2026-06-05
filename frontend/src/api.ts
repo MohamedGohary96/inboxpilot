@@ -98,6 +98,18 @@ export const api = {
   getStatus: () =>
     request<AppStatus>('/status'),
 
+  uploadCredentials: async (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    // Don't use request() — browser must set Content-Type with multipart boundary
+    const res = await fetch('/api/setup/credentials', { method: 'POST', body: form, cache: 'no-store' })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.detail ?? `${res.status} ${res.statusText}`)
+    }
+    return res.json() as Promise<{ ok: boolean }>
+  },
+
   getSettings: () =>
     request<Record<string, string>>('/settings'),
 
