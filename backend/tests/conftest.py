@@ -29,8 +29,8 @@ def no_keychain(monkeypatch):
 
 # ── Groq mock factory ────────────────────────────────────────────────────────
 
-def make_groq_response(is_task: bool = True, summary: str = "Test task") -> MagicMock:
-    args = {
+def make_classification(is_task: bool = True, summary: str = "Test task") -> dict:
+    return {
         "is_task": is_task,
         "reasoning": "Direct question requiring a reply.",
         "task_summary": summary if is_task else None,
@@ -40,22 +40,28 @@ def make_groq_response(is_task: bool = True, summary: str = "Test task") -> Magi
         "priority": "normal",
         "priority_signals": ["direct question"],
     }
-    tool_call = MagicMock()
-    tool_call.function.arguments = json.dumps(args)
-    msg = MagicMock()
-    msg.tool_calls = [tool_call]
-    response = MagicMock()
-    response.choices = [MagicMock(message=msg)]
-    return response
 
 
 @pytest.fixture
 def mock_groq(monkeypatch):
-    """Patch _get_client so classify tests never hit the network or keychain."""
-    client = MagicMock()
-    client.chat.completions.create.return_value = make_groq_response()
-    monkeypatch.setattr("todo_mail.classify._get_client", lambda: client)
-    return client
+    """Patch _get_provider so classify tests never hit the network or keychain.
+
+    Named `mock_groq` for backwards compatibility with existing tests, but it
+    now returns a mock LLMProvider whose `chat_with_tool` returns a parsed
+    classification dict directly. Tests assert against
+    `mock_groq.chat_with_tool.call_count` / `.assert_not_called()`.
+    """
+    provider = MagicMock()
+    provider.chat_with_tool.return_value = make_classification()
+    monkeypatch.setattr("todo_mail.classify._get_provider", lambda: provider)
+    return provider
+
+
+# Legacy alias kept so future tests can use a clearer name without breaking
+# old ones.
+@pytest.fixture
+def mock_provider(mock_groq):
+    return mock_groq
 
 
 # ── Minimal message row helper ────────────────────────────────────────────────

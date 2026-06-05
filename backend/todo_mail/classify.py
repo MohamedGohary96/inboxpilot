@@ -4,29 +4,128 @@ import os
 import re
 from datetime import datetime, timedelta, timezone
 
-from groq import Groq, BadRequestError, APIError
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
-
 from .config import load as _load_config
 from .db import get_conn
 from .settings import get_secret, get_setting
 
 logger = logging.getLogger(__name__)
 
-# These are resolved at first classify call (after config.json is loaded).
+# ── Provider-agnostic model / provider resolution ────────────────────────────
+
+_PROVIDER_MODEL_DEFAULTS: dict[str, str] = {
+    "groq":      "llama-3.3-70b-versatile",
+    "openai":    "gpt-4o",
+    "anthropic": "claude-sonnet-4-6",
+    "local":     "llama3",
+}
+
+
+def _provider_name() -> str:
+    """Active provider name: settings DB → config.json → 'groq'."""
+    return (
+        (get_setting("llm_provider") or "").strip()
+        or _load_config().get("llm_provider", "groq")
+    )
+
+
 def _model() -> str:
-    return _load_config()["model"]
+    """Active model ID: settings DB → config.json → per-provider default."""
+    override = (get_setting("llm_model") or "").strip()
+    if override:
+        return override
+    config_model = _load_config().get("model", "")
+    if config_model:
+        return config_model
+    return _PROVIDER_MODEL_DEFAULTS.get(_provider_name(), "llama-3.3-70b-versatile")
 
 
 def _prompt_version() -> str:
     return _load_config()["prompt_version"]
 
-def _user_identity() -> tuple[str, str]:
-    """Return (display_name, email) for the signed-in user.
 
-    Falls back to deriving the name from the email local-part when the user
-    hasn't set a display name explicitly via settings.
-    """
+# ── API key caches (read once on the main thread to avoid macOS keychain
+#    segfaults when keyring is called from worker threads) ───────────────────
+
+_GROQ_API_KEY: str | None = get_secret("groq-api-key") or os.environ.get("GROQ_API_KEY")
+_OPENAI_API_KEY: str | None = get_secret("openai-api-key") or os.environ.get("OPENAI_API_KEY")
+_ANTHROPIC_API_KEY: str | None = get_secret("anthropic-api-key") or os.environ.get("ANTHROPIC_API_KEY")
+
+
+def _get_provider():
+    """Return an LLMProvider instance for the currently configured backend."""
+    from .llm_providers import AnthropicProvider, GroqProvider, LocalProvider, OpenAIProvider
+
+    name = _provider_name()
+    model = _model()
+
+    if name == "openai":
+        if not _OPENAI_API_KEY:
+            raise RuntimeError("No OpenAI API key — set one in Settings")
+        return OpenAIProvider(_OPENAI_API_KEY, model)
+
+    if name == "anthropic":
+        if not _ANTHROPIC_API_KEY:
+            raise RuntimeError("No Anthropic API key — set one in Settings")
+        return AnthropicProvider(_ANTHROPIC_API_KEY, model)
+
+    if name == "local":
+        base_url = (
+            (get_setting("llm_base_url") or "").strip()
+            or _load_config().get("llm_base_url", "http://localhost:11434/v1")
+        )
+        return LocalProvider(model, base_url)
+
+    # Default: groq
+    if not _GROQ_API_KEY:
+        raise RuntimeError("No Groq API key — set one in Settings or run 'todo-mail set-api-key'")
+    return GroqProvider(_GROQ_API_KEY, model)
+
+
+# ── Public key-management helpers ────────────────────────────────────────────
+
+def has_provider_api_key(provider: str) -> bool:
+    if provider == "groq":
+        return bool(_GROQ_API_KEY)
+    if provider == "openai":
+        return bool(_OPENAI_API_KEY)
+    if provider == "anthropic":
+        return bool(_ANTHROPIC_API_KEY)
+    if provider == "local":
+        return True  # no key required
+    return False
+
+
+def set_provider_api_key(provider: str, key: str) -> None:
+    """Persist key in OS keyring and update the in-process cache."""
+    global _GROQ_API_KEY, _OPENAI_API_KEY, _ANTHROPIC_API_KEY
+    from .settings import set_api_key as _set_api_key
+
+    key = (key or "").strip()
+    if not key:
+        raise ValueError("API key is empty")
+    _set_api_key(provider, key)
+
+    if provider == "groq":
+        _GROQ_API_KEY = key
+    elif provider == "openai":
+        _OPENAI_API_KEY = key
+    elif provider == "anthropic":
+        _ANTHROPIC_API_KEY = key
+
+
+# Backwards-compatible aliases (used by CLI and legacy API endpoints)
+def has_groq_api_key() -> bool:
+    return has_provider_api_key("groq")
+
+
+def set_groq_api_key(key: str) -> None:
+    set_provider_api_key("groq", key)
+
+
+# ── User identity ─────────────────────────────────────────────────────────────
+
+def _user_identity() -> tuple[str, str]:
+    """Return (display_name, email) for the signed-in user."""
     email = (get_setting("account_email") or "").strip() or "you@example.com"
     name = (get_setting("user_name") or "").strip()
     if not name:
@@ -35,6 +134,8 @@ def _user_identity() -> tuple[str, str]:
         name = " ".join(p.capitalize() for p in parts if p) or "User"
     return name, email
 
+
+# ── Classification prompt + tool schema ───────────────────────────────────────
 
 def _system_prompt() -> str:
     name, email = _user_identity()
@@ -84,6 +185,7 @@ DEADLINE EXTRACTION — important:
 Be conservative on negatives: if in doubt, mark is_task=true — {first} can dismiss it.
 Always call the record_classification function with your result."""
 
+
 _TOOL = {
     "type": "function",
     "function": {
@@ -132,34 +234,10 @@ _TOOL = {
 }
 
 
-# Cache the API key at import time (main thread) to avoid calling keyring
-# from worker threads, which segfaults on macOS due to non-thread-safe Keychain APIs.
-_GROQ_API_KEY: str | None = get_secret("groq-api-key") or os.environ.get("GROQ_API_KEY")
-
-
-def _get_client() -> Groq:
-    if not _GROQ_API_KEY:
-        raise RuntimeError("No Groq API key — set one in Settings or run 'todo-mail set-api-key'")
-    return Groq(api_key=_GROQ_API_KEY)
-
-
-def has_groq_api_key() -> bool:
-    return bool(_GROQ_API_KEY)
-
-
-def set_groq_api_key(key: str) -> None:
-    """Persist the key in the OS keyring and update the in-process cache."""
-    from .settings import set_secret
-    global _GROQ_API_KEY
-    key = (key or "").strip()
-    if not key:
-        raise ValueError("API key is empty")
-    set_secret("groq-api-key", key)
-    _GROQ_API_KEY = key
-
+# ── Result coercion ───────────────────────────────────────────────────────────
 
 def _coerce(data: dict) -> dict:
-    """Fix type mismatches that the model occasionally produces."""
+    """Fix type mismatches that models occasionally produce."""
     if isinstance(data.get("is_task"), str):
         data["is_task"] = data["is_task"].lower() == "true"
     if isinstance(data.get("priority_signals"), str):
@@ -173,57 +251,19 @@ def _coerce(data: dict) -> dict:
     return data
 
 
-def _parse_failed_generation(err: BadRequestError) -> dict | None:
-    """Extract and coerce JSON from Groq's failed_generation error field."""
-    try:
-        body = err.response.json()
-        raw = body.get("error", {}).get("failed_generation", "")
-        m = re.search(r"<function=record_classification>(.*?)</function>", raw, re.DOTALL)
-        if m:
-            return _coerce(json.loads(m.group(1)))
-    except Exception:
-        pass
-    return None
-
-
-@retry(
-    retry=retry_if_exception_type(APIError),
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=2, max=30),
-    reraise=False,
-)
-def _call_groq(client: Groq, user_content: str) -> dict | None:
-    """Single Groq attempt — retried by caller on transient APIError."""
-    response = client.chat.completions.create(
-        model=_model(),
-        messages=[
-            {"role": "system", "content": _system_prompt()},
-            {"role": "user", "content": user_content},
-        ],
-        tools=[_TOOL],
-        tool_choice={"type": "function", "function": {"name": "record_classification"}},
-    )
-    msg = response.choices[0].message
-    if msg.tool_calls:
-        return _coerce(json.loads(msg.tool_calls[0].function.arguments))
-    return None
-
+# ── LLM call sites ────────────────────────────────────────────────────────────
 
 def _call_llm(user_content: str) -> dict | None:
-    client = _get_client()
     try:
-        return _call_groq(client, user_content)
-    except BadRequestError as e:
-        # Model returned wrong types — parse the raw output from the error body
-        data = _parse_failed_generation(e)
-        if data:
-            return data
-        logger.exception("Groq bad request, could not recover")
+        provider = _get_provider()
+    except RuntimeError as exc:
+        logger.error("LLM provider unavailable: %s", exc)
         return None
-    except Exception:
-        logger.exception("Groq API error after retries")
-        return None
+    result = provider.chat_with_tool(_system_prompt(), user_content, _TOOL)
+    return _coerce(result) if result else None
 
+
+# ── Deadline helpers ──────────────────────────────────────────────────────────
 
 def _default_reply_by(received_at_str: str | None) -> str:
     try:
@@ -251,7 +291,6 @@ def _vip_reply_by(received_at_str: str | None, window_hours: int) -> str:
         base = datetime.fromisoformat(received_at_str or "")
     except Exception:
         base = datetime.now(timezone.utc)
-    # Slack stores tz-aware timestamps; Gmail stores naive ones. Normalize.
     if base.tzinfo is None:
         base = base.replace(tzinfo=timezone.utc)
 
@@ -277,6 +316,8 @@ def _lookup_vip(sender_email: str | None) -> dict | None:
     return dict(row) if row else None
 
 
+# ── Core classification ───────────────────────────────────────────────────────
+
 def classify_and_store(message_id: int) -> bool:
     """Classify a stored message. Creates a task row if is_task=True. Returns True if task created."""
     with get_conn() as conn:
@@ -290,8 +331,8 @@ def classify_and_store(message_id: int) -> bool:
         logger.warning("classify_and_store: message %d not found", message_id)
         return False
 
-    # Skip LLM call for messages flagged by the pre-filter; record a is_task=False classification
-    # so this message is never retried.
+    # Skip LLM call for messages flagged by the pre-filter; record is_task=False so
+    # this message is never retried.
     if msg["pre_filter_reason"]:
         with get_conn() as conn:
             conn.execute(
@@ -308,7 +349,6 @@ def classify_and_store(message_id: int) -> bool:
         logger.debug("Pre-filtered message %d: %s", message_id, msg["pre_filter_reason"])
         return False
 
-    # Detect outgoing Slack messages (sent by the user themselves)
     slack_user_id = get_setting("slack_user_id")
     is_outgoing = (
         msg["source"] == "slack"
@@ -344,7 +384,7 @@ def classify_and_store(message_id: int) -> bool:
 
     result = _call_llm(user_content)
     if not result:
-        logger.warning("LLM returned no function call for message %d", message_id)
+        logger.warning("LLM returned no result for message %d", message_id)
         return False
 
     is_task: bool = bool(result.get("is_task", False))
@@ -362,11 +402,6 @@ def classify_and_store(message_id: int) -> bool:
             extracted_deadline: str | None = result.get("extracted_deadline")
             priority = result.get("priority", "normal")
 
-            # VIP override: force priority=high. Reply-by prefers the LLM-extracted
-            # deadline when present (so an explicit "by Friday 5pm" wins over the VIP
-            # window); falls back to the per-VIP window only when no deadline was found.
-            # Match by sender_email for Gmail; messages.slack_sender_email for Slack
-            # (populated only after the user reauthorizes with users:read.email scope).
             sender_email_for_match = msg["sender_email"] if msg["source"] != "slack" else msg["slack_sender_email"]
             vip = _lookup_vip(sender_email_for_match)
             if vip:
@@ -403,14 +438,10 @@ def classify_and_store(message_id: int) -> bool:
     return is_task
 
 
-def parse_action_intent(instructions: str) -> dict:
-    """Use the LLM to detect meeting intent and extract structured params.
+# ── Action-intent parsing (for smart-reply) ───────────────────────────────────
 
-    Returns:
-        { "has_meeting": bool, "date": "YYYY-MM-DD"|None,
-          "time": "HH:MM"|None, "duration_minutes": int,
-          "reply_instructions": str }
-    """
+def parse_action_intent(instructions: str) -> dict:
+    """Use the LLM to detect meeting intent and extract structured params."""
     from datetime import date as _date
     today = _date.today().isoformat()
 
@@ -430,38 +461,39 @@ def parse_action_intent(instructions: str) -> dict:
         "- Convert relative dates (tomorrow, next Monday, etc.) to absolute YYYY-MM-DD using today's date.\n"
         "- Convert 12-hour times (11 AM, 3 PM) to 24-hour HH:MM.\n"
         "- If no meeting is mentioned, set has_meeting=false, date/time/duration to null/30.\n"
-        "- reply_instructions should be a concise directive for drafting the email (e.g. 'Confirm the meeting on {date} at {time}' or the original instruction if no meeting)."
+        "- reply_instructions should be a concise directive for drafting the email."
     )
 
-    client = _get_client()
+    _default = {
+        "has_meeting": False,
+        "date": None,
+        "time": None,
+        "duration_minutes": 30,
+        "reply_instructions": instructions,
+    }
+
     try:
-        resp = client.chat.completions.create(
-            model=_model(),
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": instructions},
-            ],
-            response_format={"type": "json_object"},
-        )
-        raw = resp.choices[0].message.content or "{}"
+        provider = _get_provider()
+    except RuntimeError as exc:
+        logger.error("LLM provider unavailable: %s", exc)
+        return _default
+
+    try:
+        raw = provider.chat(system, instructions, json_mode=True) or "{}"
         data = json.loads(raw)
         return {
-            "has_meeting":       bool(data.get("has_meeting", False)),
-            "date":              data.get("date"),
-            "time":              data.get("time"),
-            "duration_minutes":  int(data.get("duration_minutes") or 30),
+            "has_meeting":        bool(data.get("has_meeting", False)),
+            "date":               data.get("date"),
+            "time":               data.get("time"),
+            "duration_minutes":   int(data.get("duration_minutes") or 30),
             "reply_instructions": str(data.get("reply_instructions") or instructions),
         }
     except Exception:
         logger.exception("parse_action_intent error")
-        return {
-            "has_meeting": False,
-            "date": None,
-            "time": None,
-            "duration_minutes": 30,
-            "reply_instructions": instructions,
-        }
+        return _default
 
+
+# ── Reply drafting ────────────────────────────────────────────────────────────
 
 def suggest_reply_draft(message_id: int, instructions: str | None = None) -> str | None:
     """Generate a draft reply for a task message (email or Slack). Returns plain text or None."""
@@ -500,7 +532,6 @@ def suggest_reply_draft(message_id: int, instructions: str | None = None) -> str
         from_line = f"From: {msg['sender']} <{msg['sender_email']}>"
 
     instruction_line = f"INSTRUCTION: {instructions}" if instructions else "INSTRUCTION: Write a helpful, professional reply."
-
     user_content = (
         f"{instruction_line}\n\n"
         f"---\n"
@@ -511,20 +542,16 @@ def suggest_reply_draft(message_id: int, instructions: str | None = None) -> str
         f"{(msg['body_text'] or '')[:6000]}"
     )
 
-    client = _get_client()
     try:
-        response = client.chat.completions.create(
-            model=_model(),
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user_content},
-            ],
-        )
-        return response.choices[0].message.content
-    except Exception:
-        logger.exception("Groq suggest-reply error")
+        provider = _get_provider()
+    except RuntimeError as exc:
+        logger.error("LLM provider unavailable: %s", exc)
         return None
 
+    return provider.chat(system, user_content)
+
+
+# ── News summarisation ────────────────────────────────────────────────────────
 
 def summarize_news(message_id: int) -> str | None:
     """Generate a one-line LLM summary of a news message and cache it on the row."""
@@ -550,20 +577,16 @@ def summarize_news(message_id: int) -> str | None:
         f"{(msg['body_text'] or '')[:2500]}"
     )
 
-    client = _get_client()
     try:
-        resp = client.chat.completions.create(
-            model=_model(),
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-        )
-        summary = (resp.choices[0].message.content or "").strip().strip('"').strip("'")[:240]
-    except Exception:
-        logger.exception("summarize_news error")
+        provider = _get_provider()
+    except RuntimeError as exc:
+        logger.error("LLM provider unavailable: %s", exc)
         return None
 
+    raw = provider.chat(system, user)
+    if not raw:
+        return None
+    summary = raw.strip().strip('"').strip("'")[:240]
     if not summary:
         return None
 
@@ -574,6 +597,8 @@ def summarize_news(message_id: int) -> str | None:
         )
     return summary
 
+
+# ── Eval helper ───────────────────────────────────────────────────────────────
 
 def classify_for_eval(message_id: int) -> dict | None:
     """Run classification without storing anything. Used by the eval CLI."""
@@ -591,9 +616,10 @@ def classify_for_eval(message_id: int) -> dict | None:
         f"---\n"
         f"{(msg['body_text'] or '')[:8000]}"
     )
-
     return _call_llm(user_content)
 
+
+# ── Post-task hooks ───────────────────────────────────────────────────────────
 
 def _post_task_created(
     task_id: int,

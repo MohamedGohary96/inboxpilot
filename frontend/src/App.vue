@@ -300,6 +300,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
     @close="showSettings = false"
     @slack-status-changed="fetchStatus"
     @poll-now="onPollNow"
+    @reauth="() => { showSettings = false; onReauth() }"
   />
   <ReauthModal
     :state="reauthState"
@@ -419,6 +420,32 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
       </div>
     </header>
 
+    <!-- Keyboard cheatsheet — fixed overlay, visible on all tabs -->
+    <Transition enter-active-class="animate-scale-in" leave-active-class="transition-opacity duration-100" leave-to-class="opacity-0">
+      <div
+        v-if="showCheatsheet"
+        class="fixed top-16 right-6 z-50 rounded-lg overflow-hidden shadow-dropdown animate-scale-in"
+      >
+        <div class="bg-brand-primary px-4 py-2 flex items-center justify-between">
+          <span class="text-caption font-bold text-white uppercase tracking-wide">Keyboard shortcuts</span>
+          <button @click="showCheatsheet = false" class="text-white/60 hover:text-white transition-colors" aria-label="Close shortcuts">
+            <XMarkIcon class="w-3.5 h-3.5" />
+          </button>
+        </div>
+        <div class="bg-grey-900 px-4 py-3 text-grey-100 font-mono grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2">
+          <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">n</kbd> new task</span>
+          <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">j / ↓</kbd> next</span>
+          <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">k / ↑</kbd> prev</span>
+          <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">e</kbd> edit reply-by</span>
+          <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">r</kbd> mark replied</span>
+          <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">d</kbd> dismiss</span>
+          <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">x</kbd> toggle select</span>
+          <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">Esc</kbd> deselect all</span>
+          <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">?</kbd> this panel</span>
+        </div>
+      </div>
+    </Transition>
+
     <!-- Calendar tab (full-bleed, no padding wrapper) -->
     <div v-if="activeTab === 'calendar'" class="bg-surface-page">
       <CalendarView />
@@ -482,32 +509,6 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
           Open Settings
         </button>
       </div>
-
-      <!-- Keyboard cheatsheet -->
-      <Transition enter-active-class="animate-scale-in" leave-active-class="transition-opacity duration-100" leave-to-class="opacity-0">
-        <div
-          v-if="showCheatsheet"
-          class="rounded-lg overflow-hidden shadow-dropdown animate-scale-in"
-        >
-          <div class="bg-brand-primary px-4 py-2 flex items-center justify-between">
-            <span class="text-caption font-bold text-white uppercase tracking-wide">Keyboard shortcuts</span>
-            <button @click="showCheatsheet = false" class="text-white/60 hover:text-white transition-colors" aria-label="Close shortcuts">
-              <XMarkIcon class="w-3.5 h-3.5" />
-            </button>
-          </div>
-          <div class="bg-grey-900 px-4 py-3 text-grey-100 font-mono grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2">
-            <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">n</kbd> new task</span>
-            <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">j / ↓</kbd> next</span>
-            <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">k / ↑</kbd> prev</span>
-            <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">e</kbd> edit reply-by</span>
-            <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">r</kbd> mark replied</span>
-            <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">d</kbd> dismiss</span>
-            <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">x</kbd> toggle select</span>
-            <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">Esc</kbd> deselect all</span>
-            <span class="text-caption"><kbd class="bg-grey-700 border border-grey-500 px-1.5 py-0.5 rounded text-micro shadow-sm">?</kbd> this panel</span>
-          </div>
-        </div>
-      </Transition>
 
       <!-- Not authenticated — setup card -->
       <div

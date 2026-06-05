@@ -5,15 +5,15 @@ export default {
     extend: {
       colors: {
         brand: {
-          primary:  '#a3007c',
-          dark:     '#7a005d',
-          darkest:  '#4d003a',
-          light:    '#d4a0c3',
-          lightest: '#f3e3ed',
-          50:       '#fdf2f9',
+          primary:  'var(--brand-primary)',
+          dark:     'var(--brand-dark)',
+          darkest:  'var(--brand-darkest)',
+          light:    'var(--brand-light)',
+          lightest: 'var(--brand-lightest)',
+          50:       'var(--brand-50)',
         },
         surface: {
-          page: '#e8e4f7',
+          page: 'var(--surface-page)',
           card: '#ffffff',
           sunk: '#f9fafb',
         },
@@ -30,7 +30,7 @@ export default {
           50:  '#f9fafb',
         },
         status: {
-          overdue:   '#4d003a',
+          overdue:   'var(--status-overdue)',
           'due-soon': '#F59E0B',
           replied:   '#10B981',
           dismissed: '#6B7280',
@@ -62,7 +62,7 @@ export default {
         'card-hover': '0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04)',
         dropdown:     '0 4px 16px rgba(0,0,0,0.12)',
         toast:        '0 8px 24px rgba(0,0,0,0.15)',
-        'focus-brand':'0 0 0 3px rgba(163, 0, 124, 0.25)',
+        'focus-brand': 'var(--shadow-focus-brand)',
       },
     },
   },

@@ -31,6 +31,8 @@ DEFAULTS: dict = {
     "model":          "llama-3.3-70b-versatile",
     "prompt_version": "v3",
     "pre_filter":     True,
+    "llm_provider":   "groq",
+    "llm_base_url":   "",
 }
 
 _cached: dict | None = None

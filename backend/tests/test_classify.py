@@ -22,19 +22,11 @@ def test_task_created_when_llm_returns_is_task_true(mock_groq):
 
 
 def test_no_task_when_llm_returns_not_a_task(mock_groq):
-    mock_groq.chat.completions.create.return_value.__class__  # ensure it's a mock
-    import json
-    from unittest.mock import MagicMock
-    args = {
+    mock_groq.chat_with_tool.return_value = {
         "is_task": False, "reasoning": "FYI only", "task_summary": None,
         "asker": None, "extracted_deadline": None,
         "deadline_confidence": "none", "priority": "low", "priority_signals": [],
     }
-    tool_call = MagicMock()
-    tool_call.function.arguments = json.dumps(args)
-    msg = MagicMock()
-    msg.tool_calls = [tool_call]
-    mock_groq.chat.completions.create.return_value = MagicMock(choices=[MagicMock(message=msg)])
 
     with get_conn() as conn:
         msg_id = insert_message(conn, gmail_id="msg2")
@@ -59,7 +51,7 @@ def test_idempotent_second_call(mock_groq):
             "SELECT COUNT(*) FROM classifications WHERE message_id = ?", (msg_id,)
         ).fetchone()[0]
     assert count == 1
-    assert mock_groq.chat.completions.create.call_count == 1
+    assert mock_groq.chat_with_tool.call_count == 1
 
 
 def test_pre_filter_newsletter_skips_llm(mock_groq):
@@ -69,7 +61,7 @@ def test_pre_filter_newsletter_skips_llm(mock_groq):
     result = classify_and_store(msg_id)
 
     assert result is False
-    mock_groq.chat.completions.create.assert_not_called()
+    mock_groq.chat_with_tool.assert_not_called()
 
     with get_conn() as conn:
         clf = conn.execute("SELECT * FROM classifications WHERE message_id = ?", (msg_id,)).fetchone()
@@ -85,4 +77,4 @@ def test_pre_filter_automated_sender_skips_llm(mock_groq):
                                 pre_filter_reason="automated_sender")
 
     classify_and_store(msg_id)
-    mock_groq.chat.completions.create.assert_not_called()
+    mock_groq.chat_with_tool.assert_not_called()

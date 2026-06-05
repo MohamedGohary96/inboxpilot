@@ -107,13 +107,13 @@ export const api = {
       body: JSON.stringify({ key, value }),
     }),
 
-  getGroqKeyStatus: () =>
-    request<{ has_key: boolean }>('/settings/groq-key/status'),
+  getLlmKeyStatus: (provider: string) =>
+    request<{ has_key: boolean }>(`/settings/llm-key/status?provider=${encodeURIComponent(provider)}`),
 
-  setGroqKey: (key: string) =>
-    request<{ ok: boolean }>('/settings/groq-key', {
+  setLlmKey: (provider: string, key: string) =>
+    request<{ ok: boolean }>('/settings/llm-key', {
       method: 'POST',
-      body: JSON.stringify({ key }),
+      body: JSON.stringify({ provider, key }),
     }),
 
   getCalendarEvents: (from: Date, to: Date) =>
