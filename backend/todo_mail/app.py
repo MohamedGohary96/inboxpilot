@@ -143,6 +143,10 @@ if _DIST.exists():
 
     @app.get("/{full_path:path}", include_in_schema=False)
     def spa(full_path: str):
+        # Serve real files (favicons, manifests, etc.) directly from dist/.
+        candidate = _DIST / full_path
+        if candidate.is_file():
+            return FileResponse(str(candidate))
         # index.html must never be cached — its name is stable but the hashed
         # asset URLs it references change on every build. If a stale HTML is
         # served, the browser keeps pointing at deleted asset files.
