@@ -1,8 +1,19 @@
+import logging
+
 import keyring
 import keyring.errors
 from .db import get_conn
 
+logger = logging.getLogger(__name__)
+
 _SERVICE = "todo-mail"
+
+# Headless Linux containers (and some desktop installs) ship without a working
+# backend like Secret Service or KWallet. Treat that as "no secret stored"
+# instead of crashing — callers fall back to environment variables and the
+# user can still set the Groq key via the Settings drawer (which writes
+# through to `keyring.set_password` and may fail gracefully there too).
+_KEYRING_ERRORS = (keyring.errors.KeyringError, RuntimeError, Exception)
 
 DEFAULTS: dict[str, str] = {
     "reply_by_days": "2",
@@ -12,7 +23,32 @@ DEFAULTS: dict[str, str] = {
     "gmail_query": "in:inbox is:unread -category:promotions -category:social newer_than:7d",
     "slack_lookback_days": "7",
     "user_name": "",
+    "llm_provider": "groq",
+    "llm_model": "",
+    "llm_base_url": "",
 }
+
+_PROVIDER_KEY_NAMES: dict[str, str] = {
+    "groq":      "groq-api-key",
+    "openai":    "openai-api-key",
+    "anthropic": "anthropic-api-key",
+}
+
+
+def set_api_key(provider: str, key: str) -> None:
+    """Persist an API key for the given provider in the OS keyring."""
+    secret_name = _PROVIDER_KEY_NAMES.get(provider)
+    if not secret_name:
+        raise ValueError(f"Unknown provider: {provider!r}")
+    set_secret(secret_name, key)
+
+
+def has_api_key(provider: str) -> bool:
+    """Return True if a key is stored in the keyring for the given provider."""
+    secret_name = _PROVIDER_KEY_NAMES.get(provider)
+    if not secret_name:
+        return False
+    return bool(get_secret(secret_name))
 
 
 def get_setting(key: str) -> str | None:
@@ -33,11 +69,19 @@ def set_setting(key: str, value: str) -> None:
 
 
 def get_secret(name: str) -> str | None:
-    return keyring.get_password(_SERVICE, name)
+    try:
+        return keyring.get_password(_SERVICE, name)
+    except _KEYRING_ERRORS as exc:
+        logger.warning("Keyring read for %r failed (%s) — falling back to env var", name, exc)
+        return None
 
 
 def set_secret(name: str, value: str) -> None:
-    keyring.set_password(_SERVICE, name, value)
+    try:
+        keyring.set_password(_SERVICE, name, value)
+    except _KEYRING_ERRORS as exc:
+        logger.error("Keyring write for %r failed (%s); install a backend (e.g. python3-secretstorage on Debian/Ubuntu) or set the value via env var", name, exc)
+        raise
 
 
 def delete_setting(key: str) -> None:
@@ -48,5 +92,5 @@ def delete_setting(key: str) -> None:
 def delete_secret(name: str) -> None:
     try:
         keyring.delete_password(_SERVICE, name)
-    except keyring.errors.PasswordDeleteError:
+    except (keyring.errors.PasswordDeleteError, *_KEYRING_ERRORS):
         pass
