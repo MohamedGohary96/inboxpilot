@@ -1,0 +1,157 @@
+name: Build Installers
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write   # needed to create GitHub Releases
+
+jobs:
+  # ── Mac builds (arm64 + x86_64 in parallel) ────────────────────────────────
+  build-mac:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest   # Apple Silicon (arm64)
+            arch: arm64
+          - os: macos-13       # Intel (x86_64)
+            arch: x86_64
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+          mkdir -p ../backend/todo_mail/dist
+          rm -rf ../backend/todo_mail/dist
+          cp -r dist ../backend/todo_mail/dist
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          pip install -e backend/
+          pip install pyinstaller
+
+      - name: Build .app bundle
+        run: pyinstaller installer/InboxPilot.spec --distpath installer/dist --workpath installer/build -y
+
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Create .dmg
+        run: |
+          create-dmg \
+            --volname "InboxPilot" \
+            --volicon "installer/icon.icns" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 128 \
+            --icon "InboxPilot.app" 150 185 \
+            --hide-extension "InboxPilot.app" \
+            --app-drop-link 450 185 \
+            "installer/dist/InboxPilot-mac-${{ matrix.arch }}.dmg" \
+            "installer/dist/InboxPilot.app"
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-${{ matrix.arch }}
+          path: installer/dist/InboxPilot-mac-${{ matrix.arch }}.dmg
+
+  # ── Windows build ──────────────────────────────────────────────────────────
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue ..\backend\todo_mail\dist
+          Copy-Item -Recurse dist ..\backend\todo_mail\dist
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          pip install -e backend/
+          pip install pyinstaller
+
+      - name: Build Windows .exe
+        run: pyinstaller installer/InboxPilot.spec --distpath installer/dist --workpath installer/build -y
+
+      - name: Rename output
+        run: Move-Item installer/dist/InboxPilot.exe installer/dist/InboxPilot-windows-x86_64.exe
+
+      - name: Upload EXE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x86_64
+          path: installer/dist/InboxPilot-windows-x86_64.exe
+
+  # ── Create GitHub Release with all three files ─────────────────────────────
+  release:
+    needs: [build-mac, build-windows]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: InboxPilot ${{ github.ref_name }}
+          body: |
+            ## InboxPilot ${{ github.ref_name }}
+
+            ### Downloads
+            | Platform | File |
+            |----------|------|
+            | macOS (Apple Silicon) | `InboxPilot-mac-arm64.dmg` |
+            | macOS (Intel) | `InboxPilot-mac-x86_64.dmg` |
+            | Windows | `InboxPilot-windows-x86_64.exe` |
+
+            ### Install
+            - **Mac**: Open the `.dmg`, drag InboxPilot to Applications, double-click to launch.
+            - **Windows**: Run the `.exe` directly — no installation needed.
+          files: |
+            artifacts/mac-arm64/InboxPilot-mac-arm64.dmg
+            artifacts/mac-x86_64/InboxPilot-mac-x86_64.dmg
+            artifacts/windows-x86_64/InboxPilot-windows-x86_64.exe
+          draft: false
+          prerelease: false
