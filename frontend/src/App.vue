@@ -359,8 +359,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
 
     <!-- Header -->
     <header class="bg-brand-darkest h-14 flex items-center px-6 gap-6 sticky top-0 z-50">
-      <div class="flex items-center gap-2.5 text-white font-bold text-heading tracking-tight shrink-0">
-        <EnvelopeIcon class="w-5 h-5 shrink-0" />
+      <div class="flex items-center gap-2 text-white font-bold text-heading tracking-tight shrink-0">
+        <img src="/icon-192.png" alt="" class="w-7 h-7 rounded-lg shrink-0" aria-hidden="true" />
         InboxPilot
       </div>
 
