@@ -6,7 +6,8 @@ from .db import get_conn
 
 logger = logging.getLogger(__name__)
 
-_SERVICE = "todo-mail"
+_SERVICE = "InboxPilot"
+_LEGACY_SERVICE = "todo-mail"
 
 # Headless Linux containers (and some desktop installs) ship without a working
 # backend like Secret Service or KWallet. Treat that as "no secret stored"
@@ -70,7 +71,16 @@ def set_setting(key: str, value: str) -> None:
 
 def get_secret(name: str) -> str | None:
     try:
-        return keyring.get_password(_SERVICE, name)
+        value = keyring.get_password(_SERVICE, name)
+        if value:
+            return value
+        # Migrate key from the legacy "todo-mail" service on first access
+        legacy = keyring.get_password(_LEGACY_SERVICE, name)
+        if legacy:
+            keyring.set_password(_SERVICE, name, legacy)
+            keyring.delete_password(_LEGACY_SERVICE, name)
+            return legacy
+        return None
     except _KEYRING_ERRORS as exc:
         logger.warning("Keyring read for %r failed (%s) — falling back to env var", name, exc)
         return None
