@@ -26,7 +26,20 @@ import { useToast } from './composables/useToast'
 import { api } from './api'
 import type { AppStatus, ReauthState } from './types'
 
-const activeTab = ref<'tasks' | 'calendar' | 'news'>('tasks')
+// Persist active tab across page refreshes so users on Calendar / News
+// don't get bumped back to Tasks every reload.
+const TAB_STORAGE_KEY = 'inboxpilot.activeTab'
+const VALID_TABS = ['tasks', 'calendar', 'news'] as const
+type ActiveTab = typeof VALID_TABS[number]
+function readStoredTab(): ActiveTab {
+  try {
+    const v = localStorage.getItem(TAB_STORAGE_KEY)
+    if (v && (VALID_TABS as readonly string[]).includes(v)) return v as ActiveTab
+  } catch { /* ignore */ }
+  return 'tasks'
+}
+
+const activeTab = ref<ActiveTab>(readStoredTab())
 const newsUnreadCount = ref(0)
 
 async function refreshNewsCount() {
@@ -158,6 +171,7 @@ const overdueKey = ref(0)
 watch(() => store.overdueCount, () => { overdueKey.value++ })
 
 watch(activeTab, (tab) => {
+  try { localStorage.setItem(TAB_STORAGE_KEY, tab) } catch { /* ignore quota / private mode */ }
   if (tab === 'news') refreshNewsCount()
 })
 
@@ -168,9 +182,11 @@ async function onMarkReplied(id: number) {
   const task = store.tasks.find(t => t.id === id)
   const label = task?.summary ?? task?.subject ?? 'Task'
   await store.markReplied(id)
+  fetchStatus()
   toast.show(`"${label}" marked as replied`, 'success', async () => {
     await api.updateStatus(id, 'open')
     await store.fetchTasks()
+    fetchStatus()
   })
 }
 
@@ -178,9 +194,11 @@ async function onDismiss(id: number) {
   const task = store.tasks.find(t => t.id === id)
   const label = task?.summary ?? task?.subject ?? 'Task'
   await store.dismiss(id)
+  fetchStatus()
   toast.show(`"${label}" dismissed`, 'info', async () => {
     await api.updateStatus(id, 'open')
     await store.fetchTasks()
+    fetchStatus()
   })
 }
 
@@ -189,6 +207,7 @@ const quickAddRef = ref<InstanceType<typeof QuickAddBar> | null>(null)
 
 async function onAddTask(title: string, replyBy: Date, priority: import('./types').Priority) {
   await store.createTask(title, replyBy, priority)
+  fetchStatus()
   toast.show(`"${title}" added`, 'success')
 }
 
@@ -334,10 +353,10 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
           <EnvelopeIcon class="w-3.5 h-3.5" />
           Tasks
           <span
-            v-if="store.overdueCount > 0 && activeTab !== 'tasks'"
-            :key="overdueKey"
+            v-if="(appStatus?.open_tasks ?? 0) > 0"
             class="bg-brand-primary text-white text-micro font-bold px-1.5 py-0.5 rounded-pill tabular-nums"
-          >{{ store.overdueCount }}</span>
+            :title="`${appStatus?.open_tasks} open tasks`"
+          >{{ appStatus?.open_tasks }}</span>
         </button>
         <button
           @click="activeTab = 'calendar'"

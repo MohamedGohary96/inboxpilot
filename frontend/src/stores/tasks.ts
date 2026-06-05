@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import type { Task, FilterValue, Priority, Completion, AdvancedFilters, TaskLink } from '../types'
+import type { Task, Status, FilterValue, Priority, Completion, AdvancedFilters, TaskLink } from '../types'
 import { api } from '../api'
 
 export const useTaskStore = defineStore('tasks', () => {
@@ -94,26 +94,62 @@ export const useTaskStore = defineStore('tasks', () => {
   }
 
   // ── single-task actions ───────────────────────────────────────────────────
+  //
+  // All status-changing actions update the local store optimistically and only
+  // refetch on failure. This avoids a full /api/tasks round-trip on every
+  // "mark replied" / "dismiss" click, which used to make the whole list flicker.
 
   async function updateReplyBy(id: number, date: Date) {
-    await api.updateReplyBy(id, date)
-    await fetchTasks()
+    const task = tasks.value.find(t => t.id === id)
+    const previous = task?.reply_by
+    if (task) task.reply_by = date.toISOString()
+    try {
+      await api.updateReplyBy(id, date)
+    } catch {
+      if (task && previous !== undefined) task.reply_by = previous
+      await fetchTasks()
+    }
+  }
+
+  async function applyStatusChange(id: number, newStatus: Status): Promise<void> {
+    const task = tasks.value.find(t => t.id === id)
+    if (!task) return
+    const previous = task.status
+    task.status = newStatus
+
+    // If the new status no longer matches the active filter, remove the row
+    // (matches what fetchTasks would have returned).
+    if (activeFilter.value !== 'all' && activeFilter.value !== newStatus) {
+      tasks.value = tasks.value.filter(t => t.id !== id)
+    }
+
+    if (selectedIds.value.has(id)) {
+      const next = new Set(selectedIds.value)
+      next.delete(id)
+      selectedIds.value = next
+    }
+
+    try {
+      await api.updateStatus(id, newStatus)
+    } catch {
+      task.status = previous
+      await fetchTasks()
+    }
   }
 
   async function markReplied(id: number) {
-    await api.updateStatus(id, 'replied')
-    await fetchTasks()
+    await applyStatusChange(id, 'replied')
   }
 
   async function dismiss(id: number) {
-    await api.updateStatus(id, 'dismissed')
-    await fetchTasks()
+    await applyStatusChange(id, 'dismissed')
   }
 
   async function markNotATask(id: number) {
-    await api.addFeedback(id, 'not_a_task')
-    await api.updateStatus(id, 'dismissed')
-    await fetchTasks()
+    try {
+      await api.addFeedback(id, 'not_a_task')
+    } catch { /* feedback failure non-critical — keep going */ }
+    await applyStatusChange(id, 'dismissed')
   }
 
   async function wrongDeadline(id: number) {
@@ -166,13 +202,16 @@ export const useTaskStore = defineStore('tasks', () => {
   }
 
   async function createTask(title: string, replyBy?: Date, priority?: Priority, notes?: string) {
-    await api.createTask({
+    const created = await api.createTask({
       title,
       reply_by: replyBy?.toISOString(),
       priority,
       notes,
     })
-    await fetchTasks()
+    // Append optimistically if it would have shown up under the active filter.
+    if (activeFilter.value === 'all' || activeFilter.value === created.status) {
+      tasks.value = [created, ...tasks.value]
+    }
   }
 
   // ── bulk selection ────────────────────────────────────────────────────────
@@ -198,22 +237,62 @@ export const useTaskStore = defineStore('tasks', () => {
 
   // ── bulk actions ──────────────────────────────────────────────────────────
 
-  async function bulkMarkReplied() {
+  async function bulkApplyStatus(newStatus: Status) {
     const ids = [...selectedIds.value]
-    await Promise.all(ids.map(id => api.updateStatus(id, 'replied')))
-    await fetchTasks()
+    if (ids.length === 0) return
+    const idSet = new Set(ids)
+    const previous = tasks.value
+      .filter(t => idSet.has(t.id))
+      .map(t => ({ id: t.id, status: t.status }))
+
+    for (const t of tasks.value) {
+      if (idSet.has(t.id)) t.status = newStatus
+    }
+    if (activeFilter.value !== 'all' && activeFilter.value !== newStatus) {
+      tasks.value = tasks.value.filter(t => !idSet.has(t.id))
+    }
+    selectedIds.value = new Set()
+
+    try {
+      await Promise.all(ids.map(id => api.updateStatus(id, newStatus)))
+    } catch {
+      for (const t of tasks.value) {
+        const prev = previous.find(p => p.id === t.id)
+        if (prev) t.status = prev.status
+      }
+      await fetchTasks()
+    }
+  }
+
+  async function bulkMarkReplied() {
+    await bulkApplyStatus('replied')
   }
 
   async function bulkDismiss() {
-    const ids = [...selectedIds.value]
-    await Promise.all(ids.map(id => api.updateStatus(id, 'dismissed')))
-    await fetchTasks()
+    await bulkApplyStatus('dismissed')
   }
 
   async function bulkSetCompletion(completion: Completion) {
     const ids = [...selectedIds.value]
-    await Promise.all(ids.map(id => api.updateTask(id, { completion })))
-    await fetchTasks()
+    if (ids.length === 0) return
+    const idSet = new Set(ids)
+    const previous = tasks.value
+      .filter(t => idSet.has(t.id))
+      .map(t => ({ id: t.id, completion: t.completion }))
+
+    for (const t of tasks.value) {
+      if (idSet.has(t.id)) t.completion = completion
+    }
+
+    try {
+      await Promise.all(ids.map(id => api.updateTask(id, { completion })))
+    } catch {
+      for (const t of tasks.value) {
+        const prev = previous.find(p => p.id === t.id)
+        if (prev) t.completion = prev.completion
+      }
+      await fetchTasks()
+    }
   }
 
   return {
