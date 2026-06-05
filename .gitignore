@@ -46,6 +46,11 @@ V2_PLAN.md
 REDESIGN_PLAN.md
 DESIGN.md
 
+# ── PyInstaller build artifacts ───────────────────────────────────────
+installer/build/
+installer/dist/
+installer/icon.iconset/
+
 # ── IDE / OS ──────────────────────────────────────────────────────────
 .idea/
 .vscode/
