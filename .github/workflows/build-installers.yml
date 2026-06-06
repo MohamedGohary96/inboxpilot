@@ -8,6 +8,9 @@ on:
 permissions:
   contents: write   # needed to create GitHub Releases
 
+env:
+  APP_NAME: InboxPilot
+
 jobs:
   # ── Mac builds (arm64 + x86_64 in parallel) ────────────────────────────────
   build-mac:
@@ -67,14 +70,14 @@ jobs:
             --icon "InboxPilot.app" 150 185 \
             --hide-extension "InboxPilot.app" \
             --app-drop-link 450 185 \
-            "installer/dist/InboxPilot-mac-${{ matrix.arch }}.dmg" \
-            "installer/dist/InboxPilot.app"
+            "installer/dist/${{ env.APP_NAME }}-mac-${{ matrix.arch }}.dmg" \
+            "installer/dist/${{ env.APP_NAME }}.app"
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
           name: mac-${{ matrix.arch }}
-          path: installer/dist/InboxPilot-mac-${{ matrix.arch }}.dmg
+          path: installer/dist/${{ env.APP_NAME }}-mac-${{ matrix.arch }}.dmg
 
   # ── Windows build ──────────────────────────────────────────────────────────
   build-windows:
@@ -113,13 +116,13 @@ jobs:
         run: pyinstaller installer/InboxPilot.spec --distpath installer/dist --workpath installer/build -y
 
       - name: Rename output
-        run: Move-Item installer/dist/InboxPilot.exe installer/dist/InboxPilot-windows-x86_64.exe
+        run: Move-Item installer/dist/${{ env.APP_NAME }}.exe installer/dist/${{ env.APP_NAME }}-windows-x86_64.exe
 
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-x86_64
-          path: installer/dist/InboxPilot-windows-x86_64.exe
+          path: installer/dist/${{ env.APP_NAME }}-windows-x86_64.exe
 
   # ── Create GitHub Release with all three files ─────────────────────────────
   release:
@@ -137,21 +140,21 @@ jobs:
         with:
           name: InboxPilot ${{ github.ref_name }}
           body: |
-            ## InboxPilot ${{ github.ref_name }}
+            ## ${{ env.APP_NAME }} ${{ github.ref_name }}
 
             ### Downloads
             | Platform | File |
             |----------|------|
-            | macOS (Apple Silicon) | `InboxPilot-mac-arm64.dmg` |
-            | macOS (Intel) | `InboxPilot-mac-x86_64.dmg` |
-            | Windows | `InboxPilot-windows-x86_64.exe` |
+            | macOS (Apple Silicon) | `${{ env.APP_NAME }}-mac-arm64.dmg` |
+            | macOS (Intel) | `${{ env.APP_NAME }}-mac-x86_64.dmg` |
+            | Windows | `${{ env.APP_NAME }}-windows-x86_64.exe` |
 
             ### Install
-            - **Mac**: Open the `.dmg`, drag InboxPilot to Applications, double-click to launch.
+            - **Mac**: Open the `.dmg`, drag ${{ env.APP_NAME }} to Applications, double-click to launch.
             - **Windows**: Run the `.exe` directly — no installation needed.
           files: |
-            artifacts/mac-arm64/InboxPilot-mac-arm64.dmg
-            artifacts/mac-x86_64/InboxPilot-mac-x86_64.dmg
-            artifacts/windows-x86_64/InboxPilot-windows-x86_64.exe
+            artifacts/mac-arm64/${{ env.APP_NAME }}-mac-arm64.dmg
+            artifacts/mac-x86_64/${{ env.APP_NAME }}-mac-x86_64.dmg
+            artifacts/windows-x86_64/${{ env.APP_NAME }}-windows-x86_64.exe
           draft: false
           prerelease: false
