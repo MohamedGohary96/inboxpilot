@@ -12,16 +12,9 @@ env:
   APP_NAME: InboxPilot
 
 jobs:
-  # ── Mac builds (arm64 + x86_64 in parallel) ────────────────────────────────
+  # ── Mac build (arm64 — runs natively on Apple Silicon, via Rosetta on Intel) ─
   build-mac:
-    strategy:
-      matrix:
-        include:
-          - os: macos-latest   # Apple Silicon (arm64)
-            arch: arm64
-          - os: macos-13       # Intel (x86_64)
-            arch: x86_64
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -38,7 +31,6 @@ jobs:
           cd frontend
           npm ci
           npm run build
-          mkdir -p ../backend/todo_mail/dist
           rm -rf ../backend/todo_mail/dist
           cp -r dist ../backend/todo_mail/dist
 
@@ -62,22 +54,22 @@ jobs:
       - name: Create .dmg
         run: |
           create-dmg \
-            --volname "InboxPilot" \
+            --volname "${{ env.APP_NAME }}" \
             --volicon "installer/icon.icns" \
             --window-pos 200 120 \
             --window-size 600 400 \
             --icon-size 128 \
-            --icon "InboxPilot.app" 150 185 \
-            --hide-extension "InboxPilot.app" \
+            --icon "${{ env.APP_NAME }}.app" 150 185 \
+            --hide-extension "${{ env.APP_NAME }}.app" \
             --app-drop-link 450 185 \
-            "installer/dist/${{ env.APP_NAME }}-mac-${{ matrix.arch }}.dmg" \
+            "installer/dist/${{ env.APP_NAME }}-mac.dmg" \
             "installer/dist/${{ env.APP_NAME }}.app"
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mac-${{ matrix.arch }}
-          path: installer/dist/${{ env.APP_NAME }}-mac-${{ matrix.arch }}.dmg
+          name: mac
+          path: installer/dist/${{ env.APP_NAME }}-mac.dmg
 
   # ── Windows build ──────────────────────────────────────────────────────────
   build-windows:
@@ -116,15 +108,15 @@ jobs:
         run: pyinstaller installer/InboxPilot.spec --distpath installer/dist --workpath installer/build -y
 
       - name: Rename output
-        run: Move-Item installer/dist/${{ env.APP_NAME }}.exe installer/dist/${{ env.APP_NAME }}-windows-x86_64.exe
+        run: Move-Item installer/dist/${{ env.APP_NAME }}.exe installer/dist/${{ env.APP_NAME }}-windows.exe
 
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-x86_64
-          path: installer/dist/${{ env.APP_NAME }}-windows-x86_64.exe
+          name: windows
+          path: installer/dist/${{ env.APP_NAME }}-windows.exe
 
-  # ── Create GitHub Release with all three files ─────────────────────────────
+  # ── Create GitHub Release ──────────────────────────────────────────────────
   release:
     needs: [build-mac, build-windows]
     runs-on: ubuntu-latest
@@ -138,23 +130,21 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: InboxPilot ${{ github.ref_name }}
+          name: ${{ env.APP_NAME }} ${{ github.ref_name }}
           body: |
             ## ${{ env.APP_NAME }} ${{ github.ref_name }}
 
             ### Downloads
             | Platform | File |
             |----------|------|
-            | macOS (Apple Silicon) | `${{ env.APP_NAME }}-mac-arm64.dmg` |
-            | macOS (Intel) | `${{ env.APP_NAME }}-mac-x86_64.dmg` |
-            | Windows | `${{ env.APP_NAME }}-windows-x86_64.exe` |
+            | macOS (Apple Silicon + Intel via Rosetta) | `${{ env.APP_NAME }}-mac.dmg` |
+            | Windows 10/11 | `${{ env.APP_NAME }}-windows.exe` |
 
             ### Install
             - **Mac**: Open the `.dmg`, drag ${{ env.APP_NAME }} to Applications, double-click to launch.
             - **Windows**: Run the `.exe` directly — no installation needed.
           files: |
-            artifacts/mac-arm64/${{ env.APP_NAME }}-mac-arm64.dmg
-            artifacts/mac-x86_64/${{ env.APP_NAME }}-mac-x86_64.dmg
-            artifacts/windows-x86_64/${{ env.APP_NAME }}-windows-x86_64.exe
+            artifacts/mac/${{ env.APP_NAME }}-mac.dmg
+            artifacts/windows/${{ env.APP_NAME }}-windows.exe
           draft: false
           prerelease: false
