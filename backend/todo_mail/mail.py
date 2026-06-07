@@ -133,6 +133,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/calendar.events",
     "https://www.googleapis.com/auth/directory.readonly",
     "https://www.googleapis.com/auth/contacts.readonly",
+    "https://www.googleapis.com/auth/userinfo.profile",
 ]
 
 _SECRETS_CANDIDATES = [

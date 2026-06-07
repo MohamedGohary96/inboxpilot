@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { CircleUser as UserCircleIcon, ChevronDown as ChevronDownIcon, RefreshCw as ArrowPathIcon, LogOut as ArrowRightStartOnRectangleIcon } from 'lucide-vue-next'
 
 const props = defineProps<{
   accountEmail: string | null
   needsReauth?: boolean
 }>()
+
+const photoFailed = ref(false)
+watch(() => props.accountEmail, () => { photoFailed.value = false })
 
 const emit = defineEmits<{
   reauth: []
@@ -65,8 +68,15 @@ function initials(email: string | null) {
       :title="needsReauth ? 'Gmail session expired — click to reconnect' : 'Gmail connected'"
     >
       <div class="relative">
-        <div class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-micro font-bold text-white">
-          {{ initials(accountEmail) }}
+        <div class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-micro font-bold text-white overflow-hidden">
+          <img
+            v-if="accountEmail && !photoFailed"
+            :src="'/api/me/photo'"
+            alt=""
+            class="w-full h-full object-cover"
+            @error="photoFailed = true"
+          />
+          <span v-else>{{ initials(accountEmail) }}</span>
         </div>
         <span
           class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-grey-900"
@@ -92,8 +102,15 @@ function initials(email: string | null) {
         <!-- Account info -->
         <div class="px-4 py-3 border-b border-grey-800">
           <div class="flex items-center gap-2.5">
-            <div class="w-8 h-8 rounded-full bg-brand-primary/30 flex items-center justify-center text-caption font-bold text-white shrink-0">
-              {{ initials(accountEmail) }}
+            <div class="w-8 h-8 rounded-full bg-brand-primary/30 flex items-center justify-center text-caption font-bold text-white shrink-0 overflow-hidden">
+              <img
+                v-if="accountEmail && !photoFailed"
+                :src="'/api/me/photo'"
+                alt=""
+                class="w-full h-full object-cover"
+                @error="photoFailed = true"
+              />
+              <span v-else>{{ initials(accountEmail) }}</span>
             </div>
             <div class="min-w-0">
               <p class="text-caption font-semibold text-white truncate">{{ accountEmail ?? 'Not signed in' }}</p>

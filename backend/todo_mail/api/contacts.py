@@ -11,6 +11,10 @@ router = APIRouter()
 # email → raw image bytes (or None = no photo found)
 _cache: dict[str, bytes | None] = {}
 
+# The signed-in user's own photo (via people/me). Cached at process scope.
+# None = looked up and not found; missing key = not looked up yet.
+_me_photo: dict[str, bytes | None] = {}
+
 
 def _get_svc():
     try:
@@ -85,6 +89,27 @@ def _fetch_photo_bytes(email: str) -> bytes | None:
 
 def clear_photo_cache() -> None:
     _cache.clear()
+    _me_photo.clear()
+
+
+def _fetch_me_photo_bytes() -> bytes | None:
+    svc = _get_svc()
+    if not svc:
+        return None
+    try:
+        res = svc.people().get(
+            resourceName="people/me",
+            personFields="photos",
+        ).execute()
+        for photo in res.get("photos", []):
+            if not photo.get("default"):
+                url = _resize(photo["url"])
+                resp = httpx.get(url, timeout=5, follow_redirects=True)
+                if resp.status_code == 200 and resp.headers.get("content-type", "").startswith("image/"):
+                    return resp.content
+    except Exception as exc:
+        logger.warning("Failed to fetch self photo: %s", exc)
+    return None
 
 
 @router.get("/contacts/photo")
@@ -102,6 +127,26 @@ def contact_photo(email: str = Query(...)):
 
     data = _fetch_photo_bytes(email)
     _cache[email] = data
+    if data:
+        return Response(content=data, media_type="image/jpeg",
+                        headers={"Cache-Control": "public, max-age=86400"})
+    raise HTTPException(404)
+
+
+@router.get("/me/photo")
+def me_photo():
+    if "data" in _me_photo:
+        data = _me_photo["data"]
+        if data:
+            return Response(content=data, media_type="image/jpeg",
+                            headers={"Cache-Control": "public, max-age=86400"})
+        raise HTTPException(404)
+
+    if not _get_svc():
+        raise HTTPException(404)
+
+    data = _fetch_me_photo_bytes()
+    _me_photo["data"] = data
     if data:
         return Response(content=data, media_type="image/jpeg",
                         headers={"Cache-Control": "public, max-age=86400"})
