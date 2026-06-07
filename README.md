@@ -4,7 +4,7 @@ An AI co-pilot for your Gmail and Slack — turns incoming messages into a clean
 
 Runs entirely on your machine. The only thing leaving your machine is the message subject + body sent to the LLM provider **you** choose (Groq, OpenAI, Anthropic, or a local Ollama-style endpoint).
 
-> 📘 **Architecture & Dev Doc** — see [`Inbox Pilot Dev Doc.html`](./Inbox%20Pilot%20Dev%20Doc.html) ([view rendered](https://htmlpreview.github.io/?https://github.com/MohamedGohary96/inboxpilot/blob/main/Inbox%20Pilot%20Dev%20Doc.html)) for a deep-dive into the codebase structure, request flow, and component design.
+> 📘 **Architecture & Dev Doc** — see [`Inbox Pilot Dev Doc.html`](./Inbox%20Pilot%20Dev%20Doc.html) ([view rendered](https://raw.githack.com/MohamedGohary96/inboxpilot/main/Inbox%20Pilot%20Dev%20Doc.html)) for a deep-dive into the codebase structure, request flow, and component design.
 
 ---
 
