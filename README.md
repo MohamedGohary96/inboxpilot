@@ -12,9 +12,8 @@ Pre-built installers are attached to every [GitHub Release](https://github.com/M
 
 | Platform | File |
 |----------|------|
-| macOS (Apple Silicon) | `InboxPilot-mac-arm64.dmg` |
-| macOS (Intel) | `InboxPilot-mac-x86_64.dmg` |
-| Windows 10/11 | `InboxPilot-windows-x86_64.exe` |
+| macOS (Apple Silicon + Intel via Rosetta) | `InboxPilot-mac.dmg` |
+| Windows 10/11 | `InboxPilot-windows.exe` |
 
 **Mac:** open the `.dmg`, drag InboxPilot to Applications, double-click to launch.  
 **Windows:** run the `.exe` directly — no installation needed.
