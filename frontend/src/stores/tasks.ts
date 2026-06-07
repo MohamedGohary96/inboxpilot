@@ -72,13 +72,25 @@ export const useTaskStore = defineStore('tasks', () => {
         const msg = e instanceof Error ? e.message : String(e)
         if (!msg.includes('409')) throw e
       }
-      // Poll is fire-and-forget. Watch progress until done.
+      // Poll is fire-and-forget. Watch progress until done, and refetch tasks
+      // every ~2s so newly classified items appear in the list while polling.
       await new Promise<void>((resolve, reject) => {
         const MAX_WAIT_MS = 12 * 60 * 1000
         const deadline = Date.now() + MAX_WAIT_MS
+        let lastFetchAt = 0
+        let lastCurrent = -1
         const timer = setInterval(async () => {
           try {
             const p = await api.getPollProgress()
+            // Refetch when classification progress advances (new task ready)
+            // or as a 2s fallback during long phases.
+            const progressed = p.current !== lastCurrent
+            const stale = Date.now() - lastFetchAt >= 2000
+            if (progressed || stale) {
+              lastCurrent = p.current
+              lastFetchAt = Date.now()
+              fetchTasks().catch(() => { /* mid-poll fetch best-effort */ })
+            }
             if (p.done) {
               clearInterval(timer)
               resolve()
