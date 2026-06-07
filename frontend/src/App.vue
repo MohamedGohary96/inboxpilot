@@ -618,28 +618,6 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
           </div>
         </div>
 
-        <!-- Scanning skeleton -->
-        <div v-else-if="store.polling" class="bg-surface-card rounded-xl shadow-card overflow-hidden">
-          <div class="px-4 py-3 border-b border-grey-100">
-            <div class="h-3 w-40 rounded skeleton-shimmer" />
-          </div>
-          <div class="divide-y divide-grey-100">
-            <div v-for="n in 5" :key="n" class="px-4 py-4 flex items-center gap-4">
-              <div class="w-8 h-8 rounded-full skeleton-shimmer shrink-0" />
-              <div class="flex flex-col gap-1.5 w-28">
-                <div class="h-2.5 rounded skeleton-shimmer" />
-                <div class="h-2 w-20 rounded skeleton-shimmer" />
-              </div>
-              <div class="h-2.5 flex-1 rounded skeleton-shimmer" />
-              <div class="h-6 w-16 rounded-pill skeleton-shimmer" />
-              <div class="h-2.5 w-20 rounded skeleton-shimmer" />
-            </div>
-          </div>
-          <p class="px-4 py-3 text-caption text-grey-400 text-center border-t border-grey-100">
-            Scanning your inbox and classifying emails…
-          </p>
-        </div>
-
         <template v-else>
           <div class="flex items-center justify-between gap-3 flex-wrap">
             <div class="flex items-center gap-3 flex-wrap">
